@@ -1,0 +1,60 @@
+---
+import { getCollection, render } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+
+export async function getStaticPaths() {
+  const posts = await getCollection('blog', ({ data }) => !data.draft);
+  return posts.map((post) => ({
+    params: { slug: post.id },
+    props: { post },
+  }));
+}
+
+const { post } = Astro.props;
+const { Content, headings } = await render(post);
+const title = `${post.data.title} | 9dianbiqi`;
+const formatDate = (date: Date) =>
+  new Intl.DateTimeFormat('zh-CN', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  }).format(date);
+const toc = headings.filter((heading) => heading.depth > 1 && heading.depth < 4);
+---
+
+<BaseLayout title={title} description={post.data.description} image={post.data.heroImage}>
+  <article class="article-shell">
+    <header class="article-header">
+      <p class="eyebrow">Blog</p>
+      <h1>{post.data.title}</h1>
+      <p class="article-description">{post.data.description}</p>
+      <div class="article-meta">
+        <span>{formatDate(post.data.pubDate)}</span>
+        <span>{post.data.readingTime}</span>
+        <span>Astro + GitHub Pages</span>
+      </div>
+      <ul class="tag-list" aria-label="文章标签">
+        {post.data.tags.map((tag) => <li>{tag}</li>)}
+      </ul>
+      {
+        post.data.heroImage && (
+          <figure class="article-hero-image">
+            <img src={post.data.heroImage} alt={post.data.heroAlt ?? ''} width="1536" height="1024" />
+          </figure>
+        )
+      }
+    </header>
+
+    <div class="article-layout">
+      <aside class="toc" aria-label="文章目录">
+        <p>目录</p>
+        <nav>
+          {toc.map((heading) => <a href={`#${heading.slug}`}>{heading.text}</a>)}
+        </nav>
+      </aside>
+      <div class="prose">
+        <Content />
+      </div>
+    </div>
+  </article>
+</BaseLayout>

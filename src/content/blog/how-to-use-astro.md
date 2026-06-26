@@ -1,0 +1,178 @@
+---
+title: "如何使用 Astro 搭建个人博客"
+description: "一份从创建项目、组织 Markdown 内容、设计页面到发布 GitHub Pages 的 Astro 入门文档。"
+pubDate: 2026-06-27
+heroImage: "/images/astro-learning-desk.png"
+heroAlt: "书桌上的笔记本电脑、前端草图和 Markdown、Components、Deploy 学习卡片"
+tags: ["Astro", "GitHub Pages", "前端学习"]
+readingTime: "约 8 分钟"
+draft: false
+---
+
+Astro 很适合个人博客：它默认输出静态 HTML，页面加载快，Markdown 写作体验顺手，又允许在需要时引入组件。对个人站点来说，这意味着你可以先专注写内容，再逐步增加页面设计和交互。
+
+这篇文章记录我从零搭建博客时最需要理解的几件事：项目结构、页面路由、内容集合、样式组织和 GitHub Pages 发布。
+
+## 1. 创建项目
+
+如果从空目录开始，可以使用官方脚手架：
+
+```bash
+npm create astro@latest
+```
+
+我通常会先选择一个最小模板，因为个人博客早期不需要太多抽象。安装依赖后，本地开发命令是：
+
+```bash
+npm install
+npm run dev
+```
+
+启动后，Astro 会给出本地预览地址。先确认首页能打开，再继续处理内容结构。
+
+## 2. 理解目录结构
+
+一个博客项目可以保持很简单：
+
+```text
+src/
+  content/
+    blog/
+      how-to-use-astro.md
+  layouts/
+    BaseLayout.astro
+  pages/
+    index.astro
+    blog/
+      index.astro
+      [...slug].astro
+  styles/
+    global.css
+public/
+  images/
+```
+
+`src/pages` 决定网站路由，`src/layouts` 放通用页面骨架，`src/content/blog` 放 Markdown 文章，`public` 放不需要构建处理的静态资源。
+
+## 3. 用 Content Collections 管理文章
+
+直接读取 Markdown 也可以，但博客文章会越来越多，标题、日期、标签、封面图这些字段最好有统一约束。Astro 的 Content Collections 可以帮我们校验 frontmatter。
+
+```ts
+import { defineCollection } from 'astro:content';
+import { glob } from 'astro/loaders';
+import { z } from 'astro/zod';
+
+const blog = defineCollection({
+  loader: glob({ pattern: '**/*.md', base: './src/content/blog' }),
+  schema: z.object({
+    title: z.string(),
+    description: z.string(),
+    pubDate: z.coerce.date(),
+    tags: z.array(z.string()).default([]),
+    draft: z.boolean().default(false),
+  }),
+});
+
+export const collections = { blog };
+```
+
+这样做的好处是：写文章时如果漏了标题或日期，构建阶段就会报错，而不是等到页面上线后才发现。
+
+## 4. 生成文章列表
+
+首页和文章归档页都可以从集合中读取文章：
+
+```astro
+---
+import { getCollection } from 'astro:content';
+
+const posts = (await getCollection('blog', ({ data }) => !data.draft)).sort(
+  (a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf(),
+);
+---
+```
+
+这里过滤掉草稿，再按发布时间倒序排列。后续要做标签页、年度归档或搜索，也可以基于这个数据继续扩展。
+
+## 5. 生成文章详情页
+
+文章详情页使用动态路由。`[...slug].astro` 会为每篇 Markdown 生成一个页面：
+
+```astro
+---
+import { getCollection, render } from 'astro:content';
+
+export async function getStaticPaths() {
+  const posts = await getCollection('blog', ({ data }) => !data.draft);
+  return posts.map((post) => ({
+    params: { slug: post.id },
+    props: { post },
+  }));
+}
+
+const { post } = Astro.props;
+const { Content, headings } = await render(post);
+---
+
+<article>
+  <h1>{post.data.title}</h1>
+  <Content />
+</article>
+```
+
+`headings` 可以用来生成目录，`Content` 则是已经渲染好的文章正文。
+
+## 6. 设计页面样式
+
+个人博客的核心是阅读。我的优先级是：
+
+1. 正文宽度不要太长，桌面端控制在适合阅读的行长。
+2. 标题、日期、标签和目录要清楚，但不要抢正文注意力。
+3. 首页直接展示最新文章和学习路径，不做复杂宣传区。
+4. 代码块要有足够对比度，移动端不能横向挤坏页面。
+
+这次页面设计参考了 Open Design 的内容优先方向，也用 `ui-ux-pro-max-skill` 做了视觉约束：清晰网格、稳定间距、可访问对比度、响应式布局和明确 focus 状态。
+
+## 7. 发布到 GitHub Pages
+
+Astro 官方推荐用 GitHub Actions 发布到 GitHub Pages。仓库推送到 `main` 后，工作流会安装依赖、构建 Astro，并把 `dist` 发布出去。
+
+```yaml
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: withastro/action@v6
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v5
+```
+
+如果仓库名是 `username.github.io`，发布地址就是根域名，不需要额外设置 `base`。如果是普通项目仓库，例如 `my-blog`，才需要在 `astro.config.mjs` 里配置 `base: '/my-blog'`。
+
+## 8. 我的后续计划
+
+这个博客的第一版先保持轻量：Markdown 写作、文章列表、详情页、目录和自动发布。等内容多起来后，再考虑加入标签筛选、RSS、站内搜索和代码高亮主题优化。
+
+先把写作流程跑通，比一开始追求复杂功能更重要。

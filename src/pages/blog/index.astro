@@ -1,0 +1,40 @@
+---
+import { getCollection } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+
+const posts = (await getCollection('blog', ({ data }) => !data.draft)).sort(
+  (a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf(),
+);
+
+const formatDate = (date: Date) =>
+  new Intl.DateTimeFormat('zh-CN', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  }).format(date);
+---
+
+<BaseLayout title="文章 | 9dianbiqi" description="9dianbiqi 的技术博客文章归档。">
+  <section class="page-title">
+    <p class="eyebrow">Archive</p>
+    <h1>文章</h1>
+    <p>把学习路径、踩坑记录和工程实践整理成可以回看的笔记。</p>
+  </section>
+
+  <section class="post-list" aria-label="文章列表">
+    {
+      posts.map((post) => (
+        <article class="post-row">
+          <div>
+            <p class="meta">{formatDate(post.data.pubDate)} · {post.data.readingTime}</p>
+            <h2><a href={`/blog/${post.id}/`}>{post.data.title}</a></h2>
+            <p>{post.data.description}</p>
+          </div>
+          <ul class="tag-list" aria-label={`${post.data.title} 标签`}>
+            {post.data.tags.map((tag) => <li>{tag}</li>)}
+          </ul>
+        </article>
+      ))
+    }
+  </section>
+</BaseLayout>
