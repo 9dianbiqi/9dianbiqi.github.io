@@ -1,4 +1,6 @@
 ---
+import { ClientRouter } from 'astro:transitions';
+import { site } from '../site.config';
 import '../styles/global.css';
 
 interface Props {
@@ -8,12 +10,12 @@ interface Props {
 }
 
 const {
-  title = '9dianbiqi | Astro 技术博客',
-  description = '记录 Astro、前端工程和个人学习路径的技术博客。',
+  title = site.title,
+  description = site.description,
   image = '/images/astro-learning-desk.png',
 } = Astro.props;
 
-const canonical = new URL(Astro.url.pathname, Astro.site ?? 'https://9dianbiqi.github.io');
+const canonical = new URL(Astro.url.pathname, Astro.site ?? site.url);
 ---
 
 <!doctype html>
@@ -28,8 +30,9 @@ const canonical = new URL(Astro.url.pathname, Astro.site ?? 'https://9dianbiqi.g
     <meta property="og:type" content="website" />
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
-    <meta property="og:image" content={new URL(image, Astro.site ?? 'https://9dianbiqi.github.io')} />
+    <meta property="og:image" content={new URL(image, Astro.site ?? site.url)} />
     <meta name="twitter:card" content="summary_large_image" />
+    <ClientRouter />
     <title>{title}</title>
   </head>
   <body>
@@ -38,12 +41,12 @@ const canonical = new URL(Astro.url.pathname, Astro.site ?? 'https://9dianbiqi.g
       <nav class="site-nav" aria-label="主导航">
         <a class="brand" href="/" aria-label="9dianbiqi 首页">
           <span class="brand-mark" aria-hidden="true">9</span>
-          <span class="brand-text">9dianbiqi</span>
+          <span class="brand-text">{site.author}</span>
         </a>
         <div class="nav-links">
           <a href="/">首页</a>
           <a href="/blog/">文章</a>
-          <a href="https://github.com/9dianbiqi" rel="noreferrer">GitHub</a>
+          <a href={site.githubUrl} rel="noreferrer">GitHub</a>
         </div>
       </nav>
     </header>
@@ -56,5 +59,8 @@ const canonical = new URL(Astro.url.pathname, Astro.site ?? 'https://9dianbiqi.g
         <p><a href="/blog/">阅读全部文章</a></p>
       </div>
     </footer>
+    <script>
+      import '../scripts/reveal';
+    </script>
   </body>
 </html>

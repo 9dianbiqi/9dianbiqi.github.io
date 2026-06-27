@@ -1,6 +1,11 @@
 ---
 import { getCollection } from 'astro:content';
 import BaseLayout from '../layouts/BaseLayout.astro';
+import FeaturedPost from '../components/FeaturedPost.astro';
+import HomeHero from '../components/HomeHero.astro';
+import ImageStrip from '../components/ImageStrip.astro';
+import LearningPath from '../components/LearningPath.astro';
+import { home } from '../site.config';
 
 const posts = (await getCollection('blog', ({ data }) => !data.draft)).sort(
   (a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf(),
@@ -16,66 +21,13 @@ const formatDate = (date: Date) =>
 ---
 
 <BaseLayout>
-  <section class="hero-section">
-    <div class="hero-copy">
-      <p class="eyebrow">Astro / Frontend / Notes</p>
-      <h1>把学习过程写成可以反复使用的个人知识库。</h1>
-      <p class="hero-lede">
-        这里记录我搭建个人博客、学习前端框架和整理工程实践的过程。第一篇从 Astro 开始：为什么选它、如何组织内容、怎样发布到 GitHub Pages。
-      </p>
-      <div class="hero-actions" aria-label="快捷入口">
-        <a class="button primary" href={`/blog/${featuredPost.id}/`}>阅读第一篇</a>
-        <a class="button secondary" href="/blog/">查看文章</a>
-      </div>
-    </div>
-    <figure class="hero-media">
-      <img
-        src="/images/astro-learning-desk.png"
-        alt="书桌上的笔记本电脑、前端草图和 Markdown、Components、Deploy 学习卡片"
-        width="1536"
-        height="1024"
-      />
-    </figure>
-  </section>
-
-  <section class="content-band">
-    <div class="section-heading">
-      <p class="eyebrow">Start Here</p>
-      <h2>第一条博客</h2>
-    </div>
-    <article class="featured-article">
-      <div>
-        <p class="meta">{formatDate(featuredPost.data.pubDate)} · {featuredPost.data.readingTime}</p>
-        <h3><a href={`/blog/${featuredPost.id}/`}>{featuredPost.data.title}</a></h3>
-        <p>{featuredPost.data.description}</p>
-      </div>
-      <ul class="tag-list" aria-label="文章标签">
-        {featuredPost.data.tags.map((tag) => <li>{tag}</li>)}
-      </ul>
-    </article>
-  </section>
-
-  <section class="content-band learning-grid">
-    <div class="section-heading">
-      <p class="eyebrow">Learning Path</p>
-      <h2>我会这样学习 Astro</h2>
-    </div>
-    <div class="steps-grid">
-      <article>
-        <span>01</span>
-        <h3>先跑通项目</h3>
-        <p>从最小可运行项目开始，理解页面路由、布局和静态构建。</p>
-      </article>
-      <article>
-        <span>02</span>
-        <h3>再组织内容</h3>
-        <p>用 Content Collections 管理 Markdown，让文章元数据可校验、可排序。</p>
-      </article>
-      <article>
-        <span>03</span>
-        <h3>最后自动发布</h3>
-        <p>把构建交给 GitHub Actions，主分支推送后自动更新 GitHub Pages。</p>
-      </article>
-    </div>
-  </section>
+  <HomeHero hero={home.hero} />
+  <FeaturedPost
+    post={featuredPost}
+    eyebrow={home.featured.eyebrow}
+    title={home.featured.title}
+    formattedDate={formatDate(featuredPost.data.pubDate)}
+  />
+  <LearningPath learningPath={home.learningPath} />
+  <ImageStrip imageStrip={home.imageStrip} />
 </BaseLayout>

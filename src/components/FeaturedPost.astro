@@ -1,0 +1,29 @@
+---
+import type { CollectionEntry } from 'astro:content';
+
+interface Props {
+  post: CollectionEntry<'blog'>;
+  eyebrow: string;
+  title: string;
+  formattedDate: string;
+}
+
+const { post, eyebrow, title, formattedDate } = Astro.props;
+---
+
+<section class="content-band reveal">
+  <div class="section-heading">
+    <p class="eyebrow">{eyebrow}</p>
+    <h2>{title}</h2>
+  </div>
+  <article class="featured-article">
+    <div>
+      <p class="meta">{formattedDate} · {post.data.readingTime}</p>
+      <h3><a href={`/blog/${post.id}/`}>{post.data.title}</a></h3>
+      <p>{post.data.description}</p>
+    </div>
+    <ul class="tag-list" aria-label="文章标签">
+      {post.data.tags.map((tag) => <li>{tag}</li>)}
+    </ul>
+  </article>
+</section>

@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "astro dev",
     "build": "astro check && astro build",
+    "verify:home": "node scripts/verify-home-config.mjs",
     "preview": "astro preview",
     "astro": "astro"
   },

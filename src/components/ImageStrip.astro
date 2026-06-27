@@ -1,0 +1,49 @@
+---
+import { Image } from 'astro:assets';
+
+interface Props {
+  imageStrip: {
+    eyebrow: string;
+    title: string;
+    items: Array<{
+      title: string;
+      text: string;
+      image: ImageMetadata;
+      imageAlt: string;
+      objectPosition: string;
+    }>;
+  };
+}
+
+const { imageStrip } = Astro.props;
+---
+
+<section class="content-band image-strip-section reveal">
+  <div class="section-heading">
+    <p class="eyebrow">{imageStrip.eyebrow}</p>
+    <h2>{imageStrip.title}</h2>
+  </div>
+  <div class="image-strip">
+    {
+      imageStrip.items.map((item) => (
+        <article class="image-strip-item">
+          <figure>
+            <Image
+              src={item.image}
+              alt={item.imageAlt}
+              widths={[420, 640, 840]}
+              sizes="(max-width: 900px) calc(100vw - 28px), 32vw"
+              loading="lazy"
+              decoding="async"
+              style={`object-position: ${item.objectPosition};`}
+            />
+          </figure>
+          <div>
+            <h3>{item.title}</h3>
+            <p>{item.text}</p>
+          </div>
+        </article>
+      ))
+    }
+  </div>
+</section>

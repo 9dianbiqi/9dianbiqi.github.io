@@ -330,7 +330,7 @@ h3 {
 }
 
 .learning-grid {
-  padding-bottom: 96px;
+  padding-bottom: 74px;
 }
 
 .steps-grid {
@@ -356,6 +356,63 @@ h3 {
 
 .steps-grid p {
   color: var(--ink-soft);
+}
+
+.image-strip-section {
+  padding-bottom: 96px;
+}
+
+.image-strip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.image-strip-item {
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.image-strip-item figure {
+  margin: 0;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  background: var(--surface-soft);
+}
+
+.image-strip-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.image-strip-item div {
+  padding: 22px;
+}
+
+.image-strip-item p {
+  margin: 12px 0 0;
+  color: var(--ink-soft);
+}
+
+.reveal {
+  opacity: 1;
+  transform: none;
+}
+
+.reveal-enabled .reveal {
+  opacity: 0;
+  transform: translateY(18px);
+  transition:
+    opacity 260ms ease,
+    transform 260ms ease;
+}
+
+.reveal-enabled .reveal.is-visible {
+  opacity: 1;
+  transform: translateY(0);
 }
 
 .page-title {
@@ -567,6 +624,10 @@ h3 {
     grid-template-columns: 1fr;
   }
 
+  .image-strip {
+    grid-template-columns: 1fr;
+  }
+
   .toc {
     position: static;
   }
@@ -638,5 +699,10 @@ h3 {
     transition-duration: 0.01ms !important;
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
+  }
+
+  .reveal {
+    opacity: 1;
+    transform: none;
   }
 }

@@ -1,0 +1,33 @@
+---
+interface Props {
+  learningPath: {
+    eyebrow: string;
+    title: string;
+    items: Array<{
+      step: string;
+      title: string;
+      text: string;
+    }>;
+  };
+}
+
+const { learningPath } = Astro.props;
+---
+
+<section class="content-band learning-grid reveal">
+  <div class="section-heading">
+    <p class="eyebrow">{learningPath.eyebrow}</p>
+    <h2>{learningPath.title}</h2>
+  </div>
+  <div class="steps-grid">
+    {
+      learningPath.items.map((item) => (
+        <article>
+          <span>{item.step}</span>
+          <h3>{item.title}</h3>
+          <p>{item.text}</p>
+        </article>
+      ))
+    }
+  </div>
+</section>
