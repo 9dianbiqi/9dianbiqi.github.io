@@ -1,16 +1,20 @@
 ---
 import { getCollection, render } from 'astro:content';
 import BaseLayout from '../../layouts/BaseLayout.astro';
+import { getPostNavigation } from '../../lib/postNavigation.mjs';
 
 export async function getStaticPaths() {
   const posts = await getCollection('blog', ({ data }) => !data.draft);
   return posts.map((post) => ({
     params: { slug: post.id },
-    props: { post },
+    props: {
+      post,
+      navigation: getPostNavigation(posts, post.id),
+    },
   }));
 }
 
-const { post } = Astro.props;
+const { post, navigation } = Astro.props;
 const { Content, headings } = await render(post);
 const title = `${post.data.title} | 9dianbiqi`;
 const formatDate = (date: Date) =>
@@ -54,6 +58,34 @@ const toc = headings.filter((heading) => heading.depth > 1 && heading.depth < 4)
       </aside>
       <div class="prose">
         <Content />
+
+        {
+          (navigation.previousPost || navigation.nextPost) && (
+            <nav class="article-nav" aria-label="相邻文章">
+              <div>
+                {
+                  navigation.previousPost && (
+                    <a class="article-nav-link previous" href={`/blog/${navigation.previousPost.id}/`}>
+                      <span>上一篇</span>
+                      <strong>{navigation.previousPost.data.title}</strong>
+                    </a>
+                  )
+                }
+              </div>
+              <a class="article-nav-all" href="/blog/">全部文章</a>
+              <div>
+                {
+                  navigation.nextPost && (
+                    <a class="article-nav-link next" href={`/blog/${navigation.nextPost.id}/`}>
+                      <span>下一篇</span>
+                      <strong>{navigation.nextPost.data.title}</strong>
+                    </a>
+                  )
+                }
+              </div>
+            </nav>
+          )
+        }
       </div>
     </div>
   </article>

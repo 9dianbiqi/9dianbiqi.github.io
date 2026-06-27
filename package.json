@@ -9,6 +9,7 @@
     "import:obsidian": "node scripts/import-obsidian.mjs",
     "verify:home": "node scripts/verify-home-config.mjs",
     "verify:obsidian": "node scripts/verify-obsidian-workflow.mjs",
+    "verify:post-nav": "node scripts/verify-post-navigation.mjs",
     "preview": "astro preview",
     "astro": "astro"
   },
