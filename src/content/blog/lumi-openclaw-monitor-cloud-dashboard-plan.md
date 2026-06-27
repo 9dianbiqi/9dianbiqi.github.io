@@ -1,0 +1,208 @@
+---
+title: "Lumi OpenClaw Monitor 云端 Dashboard 优化方案"
+description: "将 Lumi OpenClaw Monitor 从本地批处理工具演进为云端定时监控 Dashboard 的推荐架构、阶段路线和实时化取舍。"
+pubDate: 2026-06-27
+tags: ["Lumi", "OpenClaw", "监控", "Dashboard", "Astro"]
+draft: false
+readingTime: "约 6 分钟"
+---
+
+# Lumi OpenClaw Monitor 云端 Dashboard 优化方案
+
+当前项目 `lumi-openclaw-monitor` 的核心形态是“OpenClaw 调度 + Python 采集分析 + SQLite 存储 + 本地报表/Dashboard”。如果目标是部署到云端作为长期监控面板，我的推荐不是一开始直接改成真正实时系统，而是先做云端定时监控，再逐步演进到动态 Dashboard。
+
+原因很简单：Lumi 侧目前是查询型 API，项目本身也是批处理结构。所谓实时，本质上仍然是更高频轮询。过早引入 WebSocket、任务队列和复杂服务层，会明显增加运维复杂度，但对余额、消耗、用户排行、趋势分析这类指标的收益有限。
+
+## 推荐结论
+
+优先路线：
+
+```text
+第 1 步：云端定时静态 Dashboard
+第 2 步：补齐可靠性能力：告警、锁、重试、run history、备份
+第 3 步：升级为动态 Web Dashboard，前端自动轮询 API
+第 4 步：只有需要任务流或日志流时，再加 SSE / WebSocket
+```
+
+也就是说，当前最值得追求的不是秒级刷新，而是可靠、可访问、可告警。
+
+## 推荐架构
+
+```text
+云服务器 / VPS
+  ├─ Python collector 定时采集 Lumi API
+  ├─ SQLite 持久化数据
+  ├─ Dashboard Web 服务读取 SQLite
+  ├─ Nginx / Caddy 提供 HTTPS 和访问控制
+  └─ 告警任务推送余额不足、采集失败、消耗异常
+```
+
+这套架构继续保留项目当前的优点：OpenClaw 只负责任务调度，Lumi API 签名、采集、入库、聚合和报表生成都由确定性的 Python 代码完成。云端只需要一台小规格服务器和持久化磁盘，就能稳定运行。
+
+## 第一阶段：云端定时版
+
+第一阶段目标是先让系统稳定上线。
+
+建议使用一台 1C1G 或 2C2G 的云服务器。SQLite、定时任务和静态 Dashboard 都更适合单机持久化运行，不建议一开始上 serverless。后续如果访问量或数据量明显增长，再考虑数据库和服务层拆分。
+
+定时任务建议拆成四类：
+
+```text
+每 5-10 分钟：采集 Lumi 用量
+每 5-10 分钟：刷新 Dashboard，建议晚于采集 1-2 分钟
+每天 00:10：日终补拉与状态校验
+每周一 09:00：生成周报
+```
+
+Dashboard 暴露方式可以先保持简单：继续生成 `outputs/dashboard/index.html`，由 Nginx 或 Caddy 提供静态访问。访问控制必须前置，推荐 Tailscale、Cloudflare Tunnel、VPN 或 Basic Auth，不要把监控页面和 SQLite 管理页裸露在公网。
+
+## 第二阶段：可靠性优先优化
+
+这一阶段比“实时化”更重要，建议优先实现。
+
+### 1. 修复干净仓库可复现性
+
+当前干净 clone 后，测试会因为缺少 `config/config.yaml` 失败。这个文件本来就是本地私有配置，不应该成为仓库测试通过的硬要求。
+
+建议让测试使用临时配置，或让 review gate 能接受 `config.example.yaml` / `mock.example.yaml` 作为默认验证输入。
+
+### 2. 修复 README 和 docs 中文乱码
+
+项目代码里的中文字符串是正常的，但 README 和部分文档已经出现编码损坏。它会影响后续维护、协作和公开展示，应该尽早恢复为 UTF-8 正文。
+
+### 3. 拆分生产入口和审查入口
+
+当前 `run_after_review.py` 每次任务执行前都会跑完整 review gate 和单元测试。这个设计很稳，但不适合高频生产采集。
+
+建议拆成：
+
+```powershell
+python scripts\run_task.py collect --config config\config.yaml
+python scripts\review_agent.py --config config\config.yaml
+```
+
+生产采集只做轻量检查，例如配置可读、凭证存在、路径合法、provider 为 Lumi、数据库可写。完整 review gate 更适合 CI、每日巡检或发布前检查。
+
+### 4. 增加采集运行记录
+
+新增 `collector_runs` 表，记录每次采集的开始时间、结束时间、状态、错误、插入条数、更新条数和聚合条数。
+
+Dashboard 应该展示：
+
+- 最后一次成功采集时间
+- 最近一次失败原因
+- 连续失败次数
+- 本次采集写入和更新了多少记录
+
+这比只展示业务指标更关键，因为监控系统本身也需要被监控。
+
+### 5. Lumi API 增加重试和退避
+
+当前 API 请求如果遇到网络抖动、429 或 5xx，任务会直接失败。建议加入 3 次有限重试和指数退避，并把失败原因写入 `collector_runs`。
+
+错误类型建议分层：
+
+- 网络超时
+- 认证失败
+- 权限不足
+- API 限流
+- 服务端错误
+- 响应结构异常
+
+这样后续告警能更精准。
+
+### 6. SQLite 云端运行设置
+
+云端单机 SQLite 继续可用，但应开启：
+
+```sql
+PRAGMA journal_mode=WAL;
+PRAGMA busy_timeout=5000;
+```
+
+同时需要采集锁，避免两个 collector 同时写库。可以用文件锁，也可以用数据库锁表。
+
+### 7. 备份
+
+每天备份 `work/usage.db` 到 `backups/usage-YYYYMMDD.db`，保留 30-90 天。周报和 Dashboard 产物也可以归档，便于回看历史。
+
+## 第三阶段：动态 Dashboard
+
+当静态 Dashboard 稳定后，再新增一个常驻 Web 服务层。
+
+建议新增 `cloud_usage_monitor/server.py`，提供：
+
+```text
+GET /                 Dashboard 页面
+GET /api/dashboard    当前聚合数据
+GET /api/health       服务健康
+GET /api/runs         最近采集任务状态
+POST /api/refresh     手动触发采集，需要鉴权
+```
+
+前端每 30 秒或 60 秒请求一次 `/api/dashboard`，就能形成准实时体验。数据新鲜度由采集频率决定，例如每 1-5 分钟采集一次 Lumi API。
+
+这个阶段的重点不是炫技，而是让 Dashboard 从“定时生成 HTML”升级为“页面常驻、数据自动刷新”。
+
+## 第四阶段：真正实时化的边界
+
+只有出现以下需求时，才值得上 SSE 或 WebSocket：
+
+- 需要看到采集任务正在执行到哪一步
+- 多人同时打开 Dashboard，需要即时收到刷新事件
+- 后续接入 OpenClaw agent 运行状态、任务日志、消息流
+- 监控对象从 Lumi 账单扩展到实时任务执行过程
+
+如果只是看余额、消耗、用户排行和趋势，轮询 API 已经足够。
+
+## 告警策略
+
+告警是云端监控的核心能力，建议第一阶段就实现。
+
+推荐规则：
+
+- 算力余额低于 20%：提醒观察
+- 算力余额低于 10%：强告警
+- 预计可用天数低于 7 天：补充算力建议
+- 最近一次成功采集超过 15 分钟：采集异常
+- Lumi API 连续失败 3 次：接口或凭证异常
+- 预扣量异常升高：长耗时任务或扣费状态需要核对
+- 单用户或单场景消耗突增：可能有异常任务
+
+推送渠道可以先选一个最容易维护的，例如 Telegram、企业微信、飞书或邮件。
+
+## 推荐部署清单
+
+最小可上线版本：
+
+- 云服务器一台
+- Python 运行环境
+- 项目代码
+- `config/credentials.env` 保存只读 Lumi AK/SK
+- SQLite 数据库位于持久化目录
+- systemd timer 或 cron 调度采集和刷新
+- Nginx / Caddy 提供 HTTPS
+- Basic Auth / Tailscale / Cloudflare Tunnel 做访问控制
+- 每日数据库备份
+
+生产命令可以演进为：
+
+```powershell
+python scripts\run_task.py collect --config config\config.yaml
+python scripts\run_task.py dashboard --config config\config.yaml
+python scripts\run_task.py weekly-report --config config\config.yaml
+python scripts\review_agent.py --config config\config.yaml
+```
+
+## 最终判断
+
+这个项目最自然的演进方向是：
+
+```text
+本地批处理工具
+  -> 云端定时监控
+  -> 可告警的准实时 Dashboard
+  -> 按需扩展实时任务流
+```
+
+当前阶段不应该直接追求“真正实时”，而应该先把可靠性、访问控制、采集健康、告警和备份补齐。一个能稳定运行、能发现异常、能安全访问的云端 Dashboard，才是这个项目最有价值的下一步。
