@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "astro dev",
     "build": "astro check && astro build",
+    "import:obsidian": "node scripts/import-obsidian.mjs",
     "verify:home": "node scripts/verify-home-config.mjs",
+    "verify:obsidian": "node scripts/verify-obsidian-workflow.mjs",
     "preview": "astro preview",
     "astro": "astro"
   },

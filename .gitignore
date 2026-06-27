@@ -7,3 +7,6 @@ dist/
 *.log
 preview.pid
 qa-screenshots/
+obsidian/vault/
+obsidian/private/
+.obsidian/
