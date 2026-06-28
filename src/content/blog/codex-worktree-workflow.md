@@ -1,0 +1,256 @@
+---
+title: "Codex 工作树的工作方式：从并行开发到安全合并"
+description: "一份面向日常开发的 Codex Worktree 技术说明，解释 Local、Worktree、Handoff、detached HEAD、分支创建、PR 合并和常见风险。"
+pubDate: 2026-06-29
+tags: ["Codex", "Git", "Worktree", "GitHub"]
+draft: false
+readingTime: "约 10 分钟"
+---
+
+# Codex 工作树的工作方式：从并行开发到安全合并
+
+在 Codex 里选择 Worktree 时，表面上只是换了一个工作位置；实际上，它是在用 Git worktree 给当前任务创建一个独立工作目录。这样做的价值很直接：你可以让 Codex 在后台处理一个任务，同时保留本地 Local 环境继续做别的事，两个地方不会互相覆盖文件。
+
+这篇文章整理一套适合日常开发的理解方式：Codex Worktree 是什么、它和 Local 有什么区别、为什么默认会出现 detached HEAD、什么时候应该 Create branch here、什么时候应该 Hand off 到本地，以及最后如何通过 Pull Request 控制是否合并。
+
+## 1. 先把几个词讲清楚
+
+Codex Worktree 的核心不是“复制一份仓库”，而是“给同一个 Git 仓库挂出另一个工作目录”。理解下面几个词，后面的流程就清楚了。
+
+**Local checkout**：你平时打开的本地仓库目录。它通常连着你的 IDE、开发服务器、模拟器、数据库或本地配置。可以把 Local 理解为前台工作区。
+
+**Worktree**：Codex 从 Local 所在仓库创建出来的 Git worktree。它有自己的文件目录和工作区状态，但共享同一个 Git 仓库的对象数据库和分支引用。可以把 Worktree 理解为后台工作区。
+
+**Handoff**：Codex 在 Local 和 Worktree 之间移动线程与代码的流程。它不是简单复制文件，而是为了避免 Git 分支被两个目录同时占用而设计的安全迁移动作。
+
+**detached HEAD**：Codex 创建 Worktree 后，默认可能不立刻绑定到一个命名分支，而是停在某个提交上。这种状态适合让 Codex 先探索和修改，等你确认要保留结果时再创建正式分支。
+
+**Create branch here**：把当前 Worktree 上的结果固定到一个命名分支。创建分支后，你就可以提交、推送，并在 GitHub 上打开 Pull Request。
+
+## 2. Codex 为什么要用 Worktree
+
+如果只有一个本地目录，那么多个任务会争用同一份文件。比如你正在本地跑开发服务器，Codex 同时修改依赖、改配置、重构模块，Local 的工作状态就很容易被打乱。
+
+Worktree 把这些任务隔离开：
+
+```text
+同一个 Git 仓库
+  ├─ Local checkout：你正在看的前台目录
+  ├─ Worktree A：Codex 修复 bug
+  ├─ Worktree B：Codex 重构组件
+  └─ Worktree C：Codex 写测试或文档
+```
+
+每个 Worktree 都是一份独立工作目录，有自己的未提交修改、构建产物和当前 HEAD。它们共享 Git 历史，所以不会像手动复制文件夹那样丢失版本关系。
+
+这也是 Git worktree 本身解决的问题：在同一个仓库中维护多个工作树，方便同时处理不同分支或任务。Codex 只是把这套 Git 能力做进了产品流程里。
+
+## 3. 一条标准 Codex Worktree 流程
+
+日常使用可以按下面这条主线走。
+
+### 第一步：在新线程里选择 Worktree
+
+在 Codex 新建线程时，选择 `Worktree`，然后选一个起始分支。通常是 `main`、`master`，也可以是某个功能分支。
+
+起始分支的作用是给 Codex 一个干净基线。比如你从 `main` 开始，Codex 的修改就相当于基于当前 `main` 做一条新任务线。
+
+### 第二步：让 Codex 在 Worktree 里工作
+
+提交任务后，Codex 会创建 Worktree，并在这个独立目录中修改代码、运行命令、检查差异。你的 Local 目录不会被这次任务直接改变。
+
+这一步最适合交给 Codex 做相对独立的任务：
+
+- 修复一个明确 bug
+- 给某个模块补测试
+- 写一篇技术文档
+- 做一个页面或组件
+- 重构一块边界清楚的代码
+
+不太适合一开始就放进 Worktree 的任务，是那些高度依赖你本地运行态的事情，比如只能在当前 IDE、当前设备模拟器或当前本地服务中验证的改动。
+
+### 第三步：决定留在 Worktree 还是交回 Local
+
+当 Codex 做完一轮修改后，有两条常见路径。
+
+路径 A：继续留在 Worktree。
+
+如果 Worktree 里可以直接验证，例如依赖已经装好、测试可以跑、预览也能开，那就点击 `Create branch here`，把当前结果变成正式分支。然后提交、推送、开 PR。
+
+路径 B：Hand off 到 Local。
+
+如果你想用自己常用的 IDE 审查，或者只能在 Local 跑开发服务器、移动端模拟器、数据库连接，就用 `Hand off` 把线程和代码移动回 Local。这样你可以在熟悉环境里继续测试和提交。
+
+判断标准很简单：能在 Worktree 验证，就留在 Worktree；需要你的前台环境，就 Hand off 到 Local。
+
+## 4. detached HEAD 不代表出错
+
+很多人第一次看到 detached HEAD 会紧张，其实在 Codex Worktree 里这通常是正常状态。
+
+detached HEAD 的意思是：当前工作区停在一个提交上，但没有绑定到某个命名分支。它的好处是不会一上来就创建一堆分支。Codex 可以先探索，只有当你确认这份结果值得保留时，再创建分支。
+
+可以用下面命令检查：
+
+```bash
+git branch --show-current
+```
+
+如果没有输出，通常就是 detached HEAD。
+
+在普通 Git 里，你可以这样从当前位置创建分支：
+
+```bash
+git switch -c codex/worktree-workflow
+```
+
+在 Codex App 里，更自然的方式是点击 `Create branch here`。创建完成后，再提交和推送。
+
+## 5. Git 命令视角下发生了什么
+
+如果不用 Codex UI，手动 Git worktree 通常长这样：
+
+```bash
+git worktree add ../repo-task-a -b codex/task-a main
+cd ../repo-task-a
+```
+
+查看所有工作树：
+
+```bash
+git worktree list
+```
+
+删除不再需要的工作树：
+
+```bash
+git worktree remove ../repo-task-a
+```
+
+清理已经失效的 worktree 记录：
+
+```bash
+git worktree prune
+```
+
+Codex 的 Worktree 流程本质上也是围绕这些能力建立的，只是它帮你处理了创建、切换、线程关联和 Handoff 等细节。
+
+## 6. 为什么同一个分支不能到处 checkout
+
+Git 有一个重要限制：同一个分支不能同时被多个 worktree checkout。
+
+比如 `feature/login` 已经在某个 Worktree 里使用，你就不能在 Local 同时 checkout 这个分支。否则两个目录都能修改同一个分支，Git 很难保证工作区状态一致。
+
+这也是 Handoff 存在的原因。你想把 Worktree 的结果带回 Local 时，不应该靠手动复制文件，也不应该强行在两个目录切同一分支。让 Codex Handoff，或者先完成提交和推送，再在另一个目录按正常 Git 流程拉取，是更稳的方式。
+
+## 7. 从 Worktree 到 GitHub 合并
+
+Worktree 本身不是合并动作。真正进入主分支，通常要经过 Pull Request。
+
+推荐流程是：
+
+```text
+Codex Worktree
+  -> Create branch here
+  -> git status 检查修改
+  -> git add
+  -> git commit
+  -> git push
+  -> GitHub Pull Request
+  -> review / checks / merge
+```
+
+在命令行里大概是：
+
+```bash
+git status
+git add .
+git commit -m "docs: explain Codex worktree workflow"
+git push -u origin codex/worktree-workflow
+```
+
+然后到 GitHub 创建 PR。是否合并应该看三件事：
+
+1. `Files changed` 是否符合任务范围
+2. CI、测试、构建是否通过
+3. Review 评论是否已处理
+
+如果项目有多人协作，建议保护 `main` 分支，要求 PR、审批、状态检查和评论解决后才能合并。这样 Codex 可以高效产出，但最终进入主干仍然受团队规则控制。
+
+## 8. 适合 Worktree 的任务类型
+
+Worktree 最适合边界清楚、可独立验证的任务。
+
+典型场景：
+
+- 多个 Codex 线程并行修复不同问题
+- 一边让 Codex 写测试，一边你本地继续开发
+- 让 Codex 做文档、迁移脚本或小范围重构
+- 先让 Codex 探索实现，再决定是否创建分支
+- 临时处理紧急修复，不打断当前 Local 工作区
+
+不推荐场景：
+
+- 任务需要大量共享本地运行态
+- 需要频繁操作同一台模拟器或同一个端口服务
+- 多个任务会大面积修改同一批文件
+- 你还没准备好 Git 提交流程，只想临时试代码
+
+这些情况不是不能用 Worktree，而是需要更明确的边界和更频繁的同步检查。
+
+## 9. 我的实践建议
+
+我会把 Codex Worktree 当成“任务沙盒”，而不是“另一个长期开发目录”。
+
+一条任务线最好满足：
+
+- 一个 Worktree 对应一个明确任务
+- 一个任务最终对应一个分支
+- 分支名带上来源和目的，例如 `codex/fix-login-timeout`
+- 修改范围越小越好
+- 进入 PR 前必须跑构建或测试
+- 合并后及时清理不再使用的 Worktree
+
+如果一个任务开始变大，比如同时改架构、样式、测试、部署脚本，那就拆成多个 Worktree 或多个 PR。Worktree 的优势是并行和隔离，不是把所有改动塞进一个大沙盒里。
+
+## 10. 常见问题
+
+### Worktree 里的修改会自动进入 Local 吗
+
+不会。Worktree 和 Local 是两个独立工作目录。要么通过 Handoff 移动回来，要么在 Worktree 里创建分支、提交、推送，再在 Local 拉取。
+
+### detached HEAD 下的修改会丢吗
+
+只要工作目录还在，文件不会凭空消失。但如果你想长期保留，就应该创建分支或提交。detached HEAD 适合临时探索，不适合长期保存成果。
+
+### 可以直接从 Worktree 合并到 main 吗
+
+技术上可以，但不推荐。更稳的方式是创建分支、推送、开 PR，通过 review 和 CI 再合并。
+
+### Worktree 可以替代分支吗
+
+不能。Worktree 是工作目录隔离机制，分支是版本线。通常是先在 Worktree 里工作，确认结果后再创建分支。
+
+### 什么时候 Hand off 到 Local
+
+当你需要前台环境时。比如你要用常开的 IDE、已有开发服务器、移动端模拟器、数据库连接或本机调试配置，就把线程交回 Local。
+
+## 总结
+
+Codex Worktree 的核心价值，是让 AI 编程任务从“抢占你的当前工作区”变成“在独立工作区里并行推进”。它不改变 Git 的基本规则，也不跳过 GitHub 的合并流程。它只是把任务隔离、分支创建、Handoff 和代码审查之间的路径变顺了。
+
+我的推荐心智模型是：
+
+```text
+Local 是前台工作台
+Worktree 是后台任务沙盒
+Handoff 是安全搬运通道
+Branch 是长期保存结果的版本线
+Pull Request 是决定是否合并的入口
+```
+
+用好这套模型，Codex 就不只是一个能改代码的助手，而是可以和你的 Git 流程协同工作的并行开发伙伴。
+
+## 参考资料
+
+- [OpenAI Developers: Worktrees in Codex app](https://developers.openai.com/codex/app/worktrees)
+- [Git 官方文档：git-worktree](https://git-scm.com/docs/git-worktree)
