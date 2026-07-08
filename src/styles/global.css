@@ -671,24 +671,49 @@ h3 {
   border-collapse: collapse;
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  background: rgba(255, 253, 248, 0.72);
+  background:
+    linear-gradient(180deg, rgba(255, 253, 248, 0.97), rgba(248, 244, 234, 0.78)),
+    #fffdf8;
+  box-shadow: 0 16px 42px rgba(20, 24, 23, 0.08);
+}
+
+.prose thead {
+  background: linear-gradient(135deg, rgba(18, 61, 62, 0.95), rgba(14, 89, 96, 0.9));
+  color: #fffdf8;
 }
 
 .prose th,
 .prose td {
   border-bottom: 1px solid var(--line);
-  padding: 10px 12px;
+  padding: 12px 14px;
   text-align: left;
   white-space: nowrap;
 }
 
 .prose th {
-  background: rgba(18, 61, 62, 0.06);
-  color: var(--ink);
-  font-weight: 760;
+  color: #fffdf8;
+  font-weight: 820;
+  letter-spacing: 0.02em;
 }
 
-.prose tr:last-child td {
+.prose tbody tr {
+  transition: background-color 160ms ease;
+}
+
+.prose tbody tr:nth-child(even) {
+  background: rgba(238, 243, 237, 0.45);
+}
+
+.prose tbody tr:hover {
+  background: rgba(255, 253, 248, 0.96);
+}
+
+.prose td {
+  color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
+}
+
+.prose tbody tr:last-child td {
   border-bottom: 0;
 }
 
