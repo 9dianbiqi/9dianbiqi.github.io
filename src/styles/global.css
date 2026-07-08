@@ -665,9 +665,9 @@ h3 {
 }
 
 .prose table {
-  display: block;
+  display: table;
   width: 100%;
-  overflow-x: auto;
+  table-layout: fixed;
   border-collapse: collapse;
   border: 1px solid var(--line);
   border-radius: var(--radius);
@@ -687,7 +687,8 @@ h3 {
   border-bottom: 1px solid var(--line);
   padding: 12px 14px;
   text-align: left;
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: break-word;
 }
 
 .prose th {
