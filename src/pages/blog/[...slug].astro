@@ -27,7 +27,7 @@ const toc = headings.filter((heading) => heading.depth > 1 && heading.depth < 4)
 ---
 
 <BaseLayout title={title} description={post.data.description} image={post.data.heroImage}>
-  <article class="article-shell">
+  <article class={`article-shell post-template-${post.data.layout}`}>
     <header class="article-header">
       <p class="eyebrow">Blog</p>
       <h1>{post.data.title}</h1>

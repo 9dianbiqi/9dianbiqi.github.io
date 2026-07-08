@@ -5,6 +5,7 @@ pubDate: 2026-07-08
 tags: ["云计算", "对象存储", "云原生", "TOS", "OSS", "COS"]
 draft: false
 readingTime: "约 13 分钟"
+layout: guide
 ---
 
 学习云计算、后端部署或者前端资源发布时，经常会遇到一组词：

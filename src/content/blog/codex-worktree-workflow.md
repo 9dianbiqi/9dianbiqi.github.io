@@ -5,6 +5,7 @@ pubDate: 2026-06-29
 tags: ["Codex", "Git", "Worktree", "GitHub"]
 draft: false
 readingTime: "约 10 分钟"
+layout: note
 ---
 
 # Codex 工作树的工作方式：从并行开发到安全合并
