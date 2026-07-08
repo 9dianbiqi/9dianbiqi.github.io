@@ -1,17 +1,17 @@
 ---
-title: "Lumi OpenClaw Monitor 云端 Dashboard 优化方案"
-description: "将 Lumi OpenClaw Monitor 从本地批处理工具演进为云端定时监控 Dashboard 的推荐架构、阶段路线和实时化取舍。"
+title: "云端 Dashboard 优化方案"
+description: "将本地批处理工具演进为云端定时监控 Dashboard 的推荐架构、阶段路线和实时化取舍。"
 pubDate: 2026-06-27
-tags: ["Lumi", "OpenClaw", "监控", "Dashboard", "Astro"]
+tags: ["Lumi", "监控", "Dashboard", "Astro"]
 draft: false
 readingTime: "约 6 分钟"
 ---
 
 import ArticleVisual from '../../components/ArticleVisual.astro';
 
-# Lumi OpenClaw Monitor 云端 Dashboard 优化方案
+# 云端 Dashboard 优化方案
 
-当前项目 `lumi-openclaw-monitor` 的核心形态是“OpenClaw 调度 + Python 采集分析 + SQLite 存储 + 本地报表/Dashboard”。如果目标是部署到云端作为长期监控面板，我的推荐不是一开始直接改成真正实时系统，而是先做云端定时监控，再逐步演进到动态 Dashboard。
+当前项目的核心形态是"Python 采集分析 + SQLite 存储 + 本地报表/Dashboard"。如果目标是部署到云端作为长期监控面板，我的推荐不是一开始直接改成真正实时系统，而是先做云端定时监控，再逐步演进到动态 Dashboard。
 
 原因很简单：Lumi 侧目前是查询型 API，项目本身也是批处理结构。所谓实时，本质上仍然是更高频轮询。过早引入 WebSocket、任务队列和复杂服务层，会明显增加运维复杂度，但对余额、消耗、用户排行、趋势分析这类指标的收益有限。
 
@@ -45,7 +45,7 @@ import ArticleVisual from '../../components/ArticleVisual.astro';
   ]}
 />
 
-这套架构继续保留项目当前的优点：OpenClaw 只负责任务调度，Lumi API 签名、采集、入库、聚合和报表生成都由确定性的 Python 代码完成。云端只需要一台小规格服务器和持久化磁盘，就能稳定运行。
+这套架构继续保留项目当前的优点：调度器只负责任务调度，Lumi API 签名、采集、入库、聚合和报表生成都由确定性的 Python 代码完成。云端只需要一台小规格服务器和持久化磁盘，就能稳定运行。
 
 ## 第一阶段：云端定时版
 
@@ -164,7 +164,7 @@ PRAGMA busy_timeout=5000;
 
 - 需要看到采集任务正在执行到哪一步
 - 多人同时打开 Dashboard，需要即时收到刷新事件
-- 后续接入 OpenClaw agent 运行状态、任务日志、消息流
+- 后续接入 agent 运行状态、任务日志、消息流
 - 监控对象从 Lumi 账单扩展到实时任务执行过程
 
 如果只是看余额、消耗、用户排行和趋势，轮询 API 已经足够。

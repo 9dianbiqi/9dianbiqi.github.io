@@ -1,16 +1,16 @@
 ---
-title: "Lumi OpenClaw Monitor 数据库图表业务逻辑梳理"
-description: "基于 SQLite 数据库和 Dashboard 图表，梳理 Lumi OpenClaw Monitor 的数据来源、指标聚合、业务信号、可视化展示和后续监控规则。"
+title: "数据库图表业务逻辑梳理"
+description: "基于 SQLite 数据库和 Dashboard 图表，梳理数据来源、指标聚合、业务信号、可视化展示和后续监控规则。"
 pubDate: 2026-06-28
 updatedDate: 2026-06-28
-tags: ["Lumi", "OpenClaw", "Dashboard", "SQLite", "业务分析"]
+tags: ["Lumi", "Dashboard", "SQLite", "业务分析"]
 draft: false
 readingTime: "约 8 分钟"
 ---
 
 import ArticleVisual from '../../components/ArticleVisual.astro';
 
-这篇文章基于 `lumi-openclaw-monitor` 当前 SQLite 数据库和 Dashboard 图表，目标不是单纯解释页面上有哪些图，而是把背后的业务逻辑梳理出来：数据从哪里来，如何被清洗聚合，哪些指标应该优先展示，以及这些指标最终要支持什么监控动作。
+这篇文章基于当前 SQLite 数据库和 Dashboard 图表，目标不是单纯解释页面上有哪些图，而是把背后的业务逻辑梳理出来：数据从哪里来，如何被清洗聚合，哪些指标应该优先展示，以及这些指标最终要支持什么监控动作。
 
 ## 一句话结论
 

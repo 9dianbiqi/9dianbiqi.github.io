@@ -1,5 +1,5 @@
 ---
-title: "codex-openclaw 动态轻量 Dashboard 技术方案"
+title: "动态轻量 Dashboard 技术方案"
 description: "基于 FastAPI、HTMX、Alpine.js、Chart.js、SQLite 和 Kubernetes CronJob 的轻量云账单 Dashboard 架构选型。"
 pubDate: 2026-07-08
 tags: ["Cloud", "Dashboard", "FastAPI", "Kubernetes", "SQLite"]
@@ -7,7 +7,7 @@ draft: false
 readingTime: "约 9 分钟"
 ---
 
-# codex-openclaw 动态轻量 Dashboard 技术方案
+# 动态轻量 Dashboard 技术方案
 
 当前项目适合从“定时采集 + SQLite + Markdown 周报”升级为“定时采集 + SQLite + 动态只读 Dashboard”。推荐技术栈如下:
 
