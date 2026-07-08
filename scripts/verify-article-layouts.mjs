@@ -6,15 +6,15 @@ const read = (file) => readFileSync(file, 'utf8');
 const contentConfig = read('src/content.config.ts');
 assert.match(
   contentConfig,
-  /layout:\s*z\.enum\(\[\s*['"]essay['"],\s*['"]guide['"],\s*['"]note['"]\s*\]\)\.default\(['"]essay['"]\)/s,
-  'Blog content schema should validate layout as essay, guide, or note with essay default',
+  /articleLayout:\s*z\.enum\(\[\s*['"]essay['"],\s*['"]guide['"],\s*['"]note['"]\s*\]\)\.default\(['"]essay['"]\)/s,
+  'Blog content schema should validate articleLayout as essay, guide, or note with essay default',
 );
 
 const articlePage = read('src/pages/blog/[...slug].astro');
 assert.match(
   articlePage,
-  /post-template-\$\{post\.data\.layout\}/,
-  'Article page should apply a post-template-${post.data.layout} class',
+  /post-template-\$\{post\.data\.articleLayout\}/,
+  'Article page should apply a post-template-${post.data.articleLayout} class',
 );
 
 const styles = read('src/styles/global.css');
@@ -25,17 +25,17 @@ for (const selector of ['.prose blockquote', '.prose table', '.toc a']) {
   assert.ok(styles.includes(selector), `global.css should style ${selector}`);
 }
 
-const objectStoragePost = read('src/content/blog/cloud-object-storage-basics.md');
+const objectStoragePost = read('src/content/blog/cloud-object-storage-basics.mdx');
 assert.match(
   objectStoragePost,
-  /^layout:\s*guide$/m,
+  /^articleLayout:\s*["']?guide["']?$/m,
   'cloud-object-storage-basics should opt into the guide article layout',
 );
 
-const workflowPost = read('src/content/blog/codex-worktree-workflow.md');
+const workflowPost = read('src/content/blog/codex-worktree-workflow.mdx');
 assert.match(
   workflowPost,
-  /^layout:\s*note$/m,
+  /^articleLayout:\s*["']?note["']?$/m,
   'codex-worktree-workflow should opt into the note article layout',
 );
 

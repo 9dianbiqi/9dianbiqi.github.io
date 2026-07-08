@@ -1,0 +1,414 @@
+---
+type VisualKind = 'auto' | 'diagram' | 'flow' | 'definitions' | 'table' | 'formula' | 'list';
+
+const {
+  title = '图解',
+  kicker = '图解',
+  caption = '',
+  kind = 'auto',
+  lines = [],
+} = Astro.props as {
+  title?: string;
+  kicker?: string;
+  caption?: string;
+  kind?: VisualKind;
+  lines?: string[];
+};
+
+const normalizedLines = lines.map((line) => line.replace(/\s+$/u, ''));
+const usefulLines = normalizedLines.filter((line) => line.trim().length > 0);
+
+const colonRows = usefulLines
+  .map((line) => {
+    const index = line.indexOf('：');
+    if (index === -1) return null;
+    return {
+      label: line.slice(0, index).trim(),
+      value: line.slice(index + 1).trim(),
+    };
+  })
+  .filter(Boolean) as { label: string; value: string }[];
+
+const arrowRows = usefulLines
+  .map((line) => line.trim())
+  .filter((line) => line.includes('->'))
+  .map((line) => {
+    const [from, ...rest] = line.split('->');
+    return {
+      from: from.trim(),
+      to: rest.join('->').trim(),
+    };
+  });
+
+const inferredKind: VisualKind =
+  kind !== 'auto'
+    ? kind
+    : usefulLines.length > 0 && usefulLines.every((line) => line.includes('|')) && !usefulLines.some((line) => line.includes('v'))
+      ? 'table'
+      : usefulLines.length > 0 && colonRows.length / usefulLines.length > 0.7
+        ? 'definitions'
+        : arrowRows.length >= 2 && arrowRows.length / usefulLines.length > 0.55
+          ? 'flow'
+          : usefulLines.some((line) => /^[+=]/u.test(line.trim())) || usefulLines.some((line) => /^=/u.test(line.trim()))
+            ? 'formula'
+            : usefulLines.length <= 8 && !usefulLines.some((line) => /[|├└]/u.test(line))
+              ? 'list'
+              : 'diagram';
+
+const tableRows = usefulLines.map((line) => line.split('|').map((cell) => cell.trim()).filter(Boolean));
+const formulaItems = usefulLines.filter((line) => !line.trim().startsWith('=')).map((line) => line.replace(/^\+\s*/u, '').trim());
+const formulaResult = usefulLines.find((line) => line.trim().startsWith('='))?.replace(/^=\s*/u, '').trim();
+---
+
+<figure class:list={['article-visual', `is-${inferredKind}`]} aria-labelledby={`article-visual-${title.replace(/\s+/g, '-')}`}>
+  <figcaption>
+    <span class="visual-kicker">{kicker}</span>
+    <span class="visual-title" id={`article-visual-${title.replace(/\s+/g, '-')}`}>{title}</span>
+    {caption && <span class="visual-caption">{caption}</span>}
+  </figcaption>
+
+  {
+    inferredKind === 'definitions' && (
+      <div class="definition-grid">
+        {colonRows.map((row, index) => (
+          <section class:list={['definition-card', index === 0 && 'is-featured']}>
+            <span>{String(index + 1).padStart(2, '0')}</span>
+            <p>{row.label}</p>
+            <small>{row.value}</small>
+          </section>
+        ))}
+      </div>
+    )
+  }
+
+  {
+    inferredKind === 'flow' && (
+      <div class="flow-list">
+        {arrowRows.map((row, index) => (
+          <>
+            <section class:list={['flow-node', index === 0 && 'is-featured']}>
+              <span>{String(index + 1).padStart(2, '0')}</span>
+              <p>{row.from}</p>
+              <small>{row.to}</small>
+            </section>
+            {index < arrowRows.length - 1 && (
+              <svg class="flow-arrow" viewBox="0 0 24 30" aria-hidden="true">
+                <path d="M12 2v20" />
+                <path d="m6 16 6 6 6-6" />
+              </svg>
+            )}
+          </>
+        ))}
+      </div>
+    )
+  }
+
+  {
+    inferredKind === 'table' && (
+      <div class="visual-table">
+        {tableRows.map((row, index) => (
+          <section class:list={['table-row', index === 0 && 'is-featured']}>
+            {row.map((cell) => (
+              <span>{cell}</span>
+            ))}
+          </section>
+        ))}
+      </div>
+    )
+  }
+
+  {
+    inferredKind === 'formula' && (
+      <div class="formula-block">
+        <div class="formula-items">
+          {formulaItems.map((item, index) => (
+            <>
+              <span>{item}</span>
+              {index < formulaItems.length - 1 && (
+                <svg class="formula-plus" viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M12 5v14" />
+                  <path d="M5 12h14" />
+                </svg>
+              )}
+            </>
+          ))}
+        </div>
+        {formulaResult && <p>{formulaResult}</p>}
+      </div>
+    )
+  }
+
+  {
+    inferredKind === 'list' && (
+      <div class="visual-list">
+        {usefulLines.map((line, index) => (
+          <section class:list={['list-item', index === 0 && usefulLines.length > 3 && 'is-featured']}>
+            <span>{String(index + 1).padStart(2, '0')}</span>
+            <p>{line}</p>
+          </section>
+        ))}
+      </div>
+    )
+  }
+
+  {
+    inferredKind === 'diagram' && (
+      <pre class="visual-diagram" aria-label={title}>
+        <code>{normalizedLines.join('\n')}</code>
+      </pre>
+    )
+  }
+</figure>
+
+<style>
+  .article-visual {
+    margin: 1.45rem 0;
+    border: 1px solid rgba(221, 217, 205, 0.92);
+    border-radius: 8px;
+    background:
+      linear-gradient(180deg, rgba(255, 253, 248, 0.97), rgba(248, 244, 234, 0.78)),
+      #fffdf8;
+    box-shadow: 0 16px 42px rgba(20, 24, 23, 0.08);
+    padding: 18px;
+  }
+
+  .article-visual figcaption {
+    display: grid;
+    gap: 5px;
+    margin: 0 0 16px;
+  }
+
+  .visual-kicker {
+    color: #b55f46;
+    font-size: 0.78rem;
+    font-weight: 820;
+  }
+
+  .visual-title {
+    color: #141817;
+    font-size: 1.06rem;
+    font-weight: 840;
+    line-height: 1.35;
+  }
+
+  .visual-caption {
+    color: #68736d;
+    font-size: 0.94rem;
+    line-height: 1.65;
+  }
+
+  .definition-grid,
+  .visual-list {
+    display: grid;
+    gap: 12px;
+  }
+
+  .definition-card,
+  .flow-node,
+  .list-item,
+  .table-row {
+    min-width: 0;
+    border: 1px solid rgba(221, 217, 205, 0.95);
+    border-radius: 8px;
+    background: rgba(255, 253, 248, 0.94);
+    color: #141817;
+  }
+
+  .definition-card,
+  .flow-node,
+  .list-item {
+    padding: 15px;
+  }
+
+  .definition-card.is-featured,
+  .flow-node.is-featured,
+  .list-item.is-featured,
+  .table-row.is-featured {
+    border-color: rgba(18, 61, 62, 0.34);
+    background: linear-gradient(135deg, rgba(18, 61, 62, 0.95), rgba(14, 89, 96, 0.9));
+    box-shadow: 0 14px 30px rgba(18, 61, 62, 0.16);
+    color: #fffdf8;
+  }
+
+  .definition-card span,
+  .flow-node span,
+  .list-item span {
+    display: inline-grid;
+    min-width: 34px;
+    height: 28px;
+    place-items: center;
+    border-radius: 8px;
+    background: rgba(18, 61, 62, 0.08);
+    color: #123d3e;
+    font-size: 0.74rem;
+    font-weight: 820;
+  }
+
+  .is-featured span {
+    background: rgba(255, 253, 248, 0.14);
+    color: #fffdf8;
+  }
+
+  .definition-card p,
+  .flow-node p,
+  .list-item p,
+  .definition-card small,
+  .flow-node small {
+    margin: 0;
+  }
+
+  .definition-card p,
+  .flow-node p,
+  .list-item p {
+    margin-top: 10px;
+    color: inherit;
+    font-weight: 820;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+  }
+
+  .definition-card small,
+  .flow-node small {
+    display: block;
+    margin-top: 6px;
+    color: #68736d;
+    font-size: 0.92rem;
+    line-height: 1.65;
+  }
+
+  .is-featured small {
+    color: rgba(255, 253, 248, 0.84);
+  }
+
+  .flow-list {
+    display: grid;
+    justify-items: stretch;
+  }
+
+  .flow-arrow,
+  .formula-plus {
+    color: #b55f46;
+    fill: none;
+    stroke: currentColor;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 2;
+  }
+
+  .flow-arrow {
+    width: 24px;
+    height: 30px;
+    justify-self: center;
+  }
+
+  .visual-table {
+    display: grid;
+    gap: 10px;
+  }
+
+  .table-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 10px;
+    padding: 13px;
+  }
+
+  .table-row span {
+    overflow-wrap: anywhere;
+    color: inherit;
+    font-weight: 720;
+    line-height: 1.5;
+  }
+
+  .formula-block {
+    display: grid;
+    gap: 14px;
+  }
+
+  .formula-items {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+  }
+
+  .formula-items span {
+    min-width: min(100%, 132px);
+    border: 1px solid rgba(221, 217, 205, 0.95);
+    border-radius: 8px;
+    background: rgba(255, 253, 248, 0.94);
+    padding: 13px 15px;
+    color: #123d3e;
+    font-weight: 820;
+    text-align: center;
+  }
+
+  .formula-plus {
+    width: 20px;
+    height: 20px;
+    flex: 0 0 auto;
+  }
+
+  .formula-block p {
+    margin: 0;
+    border-left: 3px solid #b55f46;
+    padding-left: 12px;
+    color: #394540;
+    line-height: 1.7;
+  }
+
+  .visual-diagram {
+    max-width: 100%;
+    overflow-x: auto;
+    border: 1px solid rgba(221, 217, 205, 0.95);
+    border-radius: 8px;
+    background:
+      linear-gradient(90deg, rgba(18, 61, 62, 0.055) 1px, transparent 1px) 0 0 / 32px 32px,
+      rgba(255, 253, 248, 0.94);
+    color: #123d3e;
+    padding: 16px;
+  }
+
+  .visual-diagram code {
+    display: block;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font-size: 0.92rem;
+    line-height: 1.72;
+    white-space: pre;
+  }
+
+  @media (min-width: 760px) {
+    .article-visual {
+      padding: 22px;
+    }
+
+    .definition-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .visual-list {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @media (max-width: 620px) {
+    .article-visual {
+      padding: 16px;
+    }
+
+    .visual-diagram code {
+      overflow-wrap: anywhere;
+      white-space: pre-wrap;
+    }
+
+    .formula-items {
+      display: grid;
+    }
+
+    .formula-plus {
+      justify-self: center;
+    }
+  }
+</style>

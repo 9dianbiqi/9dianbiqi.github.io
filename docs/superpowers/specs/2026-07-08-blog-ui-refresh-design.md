@@ -16,14 +16,14 @@ The visual tone should combine a soft reading surface with precise technical str
 
 ## Article Layout Variants
 
-Add a `layout` frontmatter field to blog posts. It will default to `essay` so existing posts continue to work.
+Add an `articleLayout` frontmatter field to blog posts. It will default to `essay` so existing posts continue to work.
 
 ```md
 ---
 title: Example Post
 description: Example description
 pubDate: 2026-07-08
-layout: guide
+articleLayout: guide
 ---
 ```
 
@@ -37,7 +37,7 @@ Supported values:
 
 Keep the current Astro structure:
 
-- `src/content.config.ts` owns the blog content schema and validates the new `layout` field.
+- `src/content.config.ts` owns the blog content schema and validates the new `articleLayout` field.
 - `src/pages/blog/[...slug].astro` remains the single article renderer and emits a template class such as `post-template-guide`.
 - `src/styles/global.css` owns the visual system and variant-specific layout rules.
 - Existing components for home, featured post, learning path, and image strip remain in place.
@@ -61,11 +61,11 @@ The implementation should not add analytics, comments, search, a newsletter form
 ## Data Flow
 
 1. Markdown frontmatter is validated by the Astro content collection schema.
-2. The article page reads `post.data.layout`.
-3. The page applies `post-template-${post.data.layout}` to the article shell.
+2. The article page reads `post.data.articleLayout`.
+3. The page applies `post-template-${post.data.articleLayout}` to the article shell.
 4. CSS uses that class to adjust layout, width, spacing, table of contents behavior, and article chrome.
 
-When `layout` is omitted, the schema default keeps the post on `essay`.
+When `articleLayout` is omitted, the schema default keeps the post on `essay`.
 
 ## Responsive Behavior
 

@@ -5,8 +5,11 @@ pubDate: 2026-07-08
 tags: ["云计算", "对象存储", "云原生", "TOS", "OSS", "COS"]
 draft: false
 readingTime: "约 13 分钟"
-layout: guide
+articleLayout: "guide"
 ---
+
+import ObjectStorageFlow from '../../components/ObjectStorageFlow.astro';
+import ObjectStorageVisual from '../../components/ObjectStorageVisual.astro';
 
 学习云计算、后端部署或者前端资源发布时，经常会遇到一组词：
 
@@ -148,11 +151,7 @@ layout: guide
 
 所以如果一句话总结：
 
-```text
-数据库存“业务数据”
-对象存储存“文件数据”
-本地磁盘存“运行时临时数据或本机文件”
-```
+<ObjectStorageVisual variant="storage-roles" />
 
 ## 什么叫“对象”
 
@@ -160,9 +159,7 @@ layout: guide
 
 一个对象通常可以理解成：
 
-```text
-文件内容 + 文件标识 + 元数据
-```
+<ObjectStorageVisual variant="object-formula" />
 
 例如一张图片对象，除了图片本身，还可能带有：
 
@@ -201,16 +198,7 @@ Bucket 的作用类似于：
 
 例如：
 
-```text
-bucket: user-avatar
-key: 2026/07/08/u123/avatar.png
-```
-
-最终对应的对象就是：
-
-```text
-user-avatar / 2026/07/08/u123/avatar.png
-```
+<ObjectStorageVisual variant="object-key" />
 
 注意一点：
 
@@ -218,32 +206,13 @@ user-avatar / 2026/07/08/u123/avatar.png
 
 也就是说，看起来像：
 
-```text
-images/2026/07/banner.png
-```
+<ObjectStorageVisual variant="key-prefix" />
 
 本质上经常只是一个完整 key，不一定真有多级文件夹的物理结构。
 
 ## 一张图看懂对象存储访问链路
 
-```text
-用户 / 浏览器 / App
-        |
-        v
-    业务系统
-        |
-        v
-生成上传凭证 / 文件路径 / 访问地址
-        |
-        v
-    对象存储 Bucket
-        |
-        v
-      CDN（可选）
-        |
-        v
-   用户访问图片/视频/附件
-```
+<ObjectStorageFlow />
 
 这条链路里，对象存储负责“文件放在哪”，CDN 负责“更快地把文件送出去”。
 
@@ -332,10 +301,7 @@ images/2026/07/banner.png
 
 可以这样理解：
 
-```text
-对象存储 = 仓库
-CDN = 配送网络
-```
+<ObjectStorageVisual variant="cdn-analogy" />
 
 对象存储里有文件，但如果全国各地用户都直接回源去拿，速度可能一般。  
 加上 CDN 之后，热门文件可以缓存到离用户更近的节点。
@@ -510,23 +476,7 @@ CDN = 配送网络
 
 如果把一个典型云上系统画出来，大概是这样：
 
-```text
-用户 / 浏览器 / App
-        |
-        v
-  域名 / CDN / 负载均衡
-        |
-        v
-  前端服务 / 后端服务
-        |
-   +----+----+
-   |         |
-   v         v
-数据库     对象存储
-            |
-            v
-       图片 / 视频 / 附件 / 静态资源 / 备份
-```
+<ObjectStorageVisual variant="cloud-native" />
 
 在这张图里：
 
@@ -563,38 +513,7 @@ CDN = 配送网络
 
 ## 一份适合记忆的总图
 
-```text
-对象存储的核心要点
-
-1. 存什么
-  - 图片
-  - 视频
-  - 文档
-  - 静态资源
-  - 日志
-  - 备份
-
-2. 为什么不用服务器本地磁盘
-  - 不方便扩容
-  - 不利于多机共享
-  - 运维成本高
-  - 公网分发不友好
-
-3. 核心概念
-  - Bucket：桶
-  - Object：对象
-  - Key：对象标识
-  - ACL / Policy：权限控制
-  - Lifecycle：生命周期
-  - Presigned URL：临时签名地址
-
-4. 常见链路
-  - 用户上传
-  - 后端生成凭证
-  - 上传到对象存储
-  - 数据库存文件地址
-  - 用户通过对象存储或 CDN 访问
-```
+<ObjectStorageVisual variant="summary-map" />
 
 ## 最后怎么真正理解对象存储
 

@@ -7,6 +7,8 @@ draft: false
 readingTime: "约 6 分钟"
 ---
 
+import ArticleVisual from '../../components/ArticleVisual.astro';
+
 # Lumi OpenClaw Monitor 云端 Dashboard 优化方案
 
 当前项目 `lumi-openclaw-monitor` 的核心形态是“OpenClaw 调度 + Python 采集分析 + SQLite 存储 + 本地报表/Dashboard”。如果目标是部署到云端作为长期监控面板，我的推荐不是一开始直接改成真正实时系统，而是先做云端定时监控，再逐步演进到动态 Dashboard。
@@ -17,25 +19,31 @@ readingTime: "约 6 分钟"
 
 优先路线：
 
-```text
-第 1 步：云端定时静态 Dashboard
-第 2 步：补齐可靠性能力：告警、锁、重试、run history、备份
-第 3 步：升级为动态 Web Dashboard，前端自动轮询 API
-第 4 步：只有需要任务流或日志流时，再加 SSE / WebSocket
-```
+<ArticleVisual
+  title={"推荐结论"}
+  lines={[
+    "第 1 步：云端定时静态 Dashboard",
+    "第 2 步：补齐可靠性能力：告警、锁、重试、run history、备份",
+    "第 3 步：升级为动态 Web Dashboard，前端自动轮询 API",
+    "第 4 步：只有需要任务流或日志流时，再加 SSE / WebSocket"
+  ]}
+/>
 
 也就是说，当前最值得追求的不是秒级刷新，而是可靠、可访问、可告警。
 
 ## 推荐架构
 
-```text
-云服务器 / VPS
-  ├─ Python collector 定时采集 Lumi API
-  ├─ SQLite 持久化数据
-  ├─ Dashboard Web 服务读取 SQLite
-  ├─ Nginx / Caddy 提供 HTTPS 和访问控制
-  └─ 告警任务推送余额不足、采集失败、消耗异常
-```
+<ArticleVisual
+  title={"推荐架构"}
+  lines={[
+    "云服务器 / VPS",
+    "  ├─ Python collector 定时采集 Lumi API",
+    "  ├─ SQLite 持久化数据",
+    "  ├─ Dashboard Web 服务读取 SQLite",
+    "  ├─ Nginx / Caddy 提供 HTTPS 和访问控制",
+    "  └─ 告警任务推送余额不足、采集失败、消耗异常"
+  ]}
+/>
 
 这套架构继续保留项目当前的优点：OpenClaw 只负责任务调度，Lumi API 签名、采集、入库、聚合和报表生成都由确定性的 Python 代码完成。云端只需要一台小规格服务器和持久化磁盘，就能稳定运行。
 
@@ -47,12 +55,15 @@ readingTime: "约 6 分钟"
 
 定时任务建议拆成四类：
 
-```text
-每 5-10 分钟：采集 Lumi 用量
-每 5-10 分钟：刷新 Dashboard，建议晚于采集 1-2 分钟
-每天 00:10：日终补拉与状态校验
-每周一 09:00：生成周报
-```
+<ArticleVisual
+  title={"第一阶段：云端定时版"}
+  lines={[
+    "每 5-10 分钟：采集 Lumi 用量",
+    "每 5-10 分钟：刷新 Dashboard，建议晚于采集 1-2 分钟",
+    "每天 00:10：日终补拉与状态校验",
+    "每周一 09:00：生成周报"
+  ]}
+/>
 
 Dashboard 暴露方式可以先保持简单：继续生成 `outputs/dashboard/index.html`，由 Nginx 或 Caddy 提供静态访问。访问控制必须前置，推荐 Tailscale、Cloudflare Tunnel、VPN 或 Basic Auth，不要把监控页面和 SQLite 管理页裸露在公网。
 
@@ -132,13 +143,16 @@ PRAGMA busy_timeout=5000;
 
 建议新增 `cloud_usage_monitor/server.py`，提供：
 
-```text
-GET /                 Dashboard 页面
-GET /api/dashboard    当前聚合数据
-GET /api/health       服务健康
-GET /api/runs         最近采集任务状态
-POST /api/refresh     手动触发采集，需要鉴权
-```
+<ArticleVisual
+  title={"第三阶段：动态 Dashboard"}
+  lines={[
+    "GET /                 Dashboard 页面",
+    "GET /api/dashboard    当前聚合数据",
+    "GET /api/health       服务健康",
+    "GET /api/runs         最近采集任务状态",
+    "POST /api/refresh     手动触发采集，需要鉴权"
+  ]}
+/>
 
 前端每 30 秒或 60 秒请求一次 `/api/dashboard`，就能形成准实时体验。数据新鲜度由采集频率决定，例如每 1-5 分钟采集一次 Lumi API。
 
@@ -198,11 +212,14 @@ python scripts\review_agent.py --config config\config.yaml
 
 这个项目最自然的演进方向是：
 
-```text
-本地批处理工具
-  -> 云端定时监控
-  -> 可告警的准实时 Dashboard
-  -> 按需扩展实时任务流
-```
+<ArticleVisual
+  title={"最终判断"}
+  lines={[
+    "本地批处理工具",
+    "  -> 云端定时监控",
+    "  -> 可告警的准实时 Dashboard",
+    "  -> 按需扩展实时任务流"
+  ]}
+/>
 
 当前阶段不应该直接追求“真正实时”，而应该先把可靠性、访问控制、采集健康、告警和备份补齐。一个能稳定运行、能发现异常、能安全访问的云端 Dashboard，才是这个项目最有价值的下一步。

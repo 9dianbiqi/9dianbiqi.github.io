@@ -1,0 +1,196 @@
+---
+const steps = [
+  {
+    label: '01',
+    title: '用户端',
+    detail: '用户、浏览器或 App 发起上传、查看图片、下载附件等动作。',
+  },
+  {
+    label: '02',
+    title: '业务系统',
+    detail: '后端校验登录态、业务权限，并决定文件应该如何被访问。',
+  },
+  {
+    label: '03',
+    title: '上传凭证',
+    detail: '系统生成临时凭证、对象 Key、文件路径或短期有效访问地址。',
+  },
+  {
+    label: '04',
+    title: '对象存储 Bucket',
+    detail: '文件本体进入 Bucket，由对象存储负责持久保存和权限管理。',
+    featured: true,
+  },
+  {
+    label: '05',
+    title: 'CDN 加速',
+    detail: '可选环节。热门资源缓存到更靠近用户的节点，降低访问延迟。',
+  },
+  {
+    label: '06',
+    title: '访问资源',
+    detail: '用户最终访问图片、视频、文档或其他附件资源。',
+  },
+];
+---
+
+<figure class="object-storage-flow" aria-labelledby="object-storage-flow-title">
+  <figcaption id="object-storage-flow-title">
+    对象存储访问链路：业务系统负责授权和记录，对象存储负责保存文件，CDN 负责加速分发。
+  </figcaption>
+  <div class="flow-stage-list">
+    {
+      steps.map((step, index) => (
+        <>
+          <section class:list={['flow-stage', step.featured && 'is-featured']}>
+            <span class="flow-index">{step.label}</span>
+            <div>
+              <p class="flow-title">{step.title}</p>
+              <p class="flow-detail">{step.detail}</p>
+            </div>
+          </section>
+          {
+            index < steps.length - 1 && (
+              <svg class="flow-arrow" viewBox="0 0 24 34" role="img" aria-label="流向下一个环节">
+                <path d="M12 2v24" />
+                <path d="m5 19 7 7 7-7" />
+              </svg>
+            )
+          }
+        </>
+      ))
+    }
+  </div>
+</figure>
+
+<style>
+  .object-storage-flow {
+    margin: 1.6rem 0;
+    border: 1px solid rgba(221, 217, 205, 0.92);
+    border-radius: 8px;
+    background:
+      linear-gradient(180deg, rgba(255, 253, 248, 0.96), rgba(248, 244, 234, 0.72)),
+      #fffdf8;
+    box-shadow: 0 16px 42px rgba(20, 24, 23, 0.08);
+    padding: 20px;
+  }
+
+  .object-storage-flow figcaption {
+    margin: 0 0 18px;
+    color: #394540;
+    font-size: 0.95rem;
+    line-height: 1.75;
+  }
+
+  .flow-stage-list {
+    display: grid;
+    justify-items: stretch;
+  }
+
+  .flow-stage {
+    display: grid;
+    grid-template-columns: 48px minmax(0, 1fr);
+    gap: 14px;
+    align-items: start;
+    border: 1px solid rgba(221, 217, 205, 0.95);
+    border-radius: 8px;
+    background: rgba(255, 253, 248, 0.92);
+    padding: 16px;
+  }
+
+  .flow-stage.is-featured {
+    border-color: rgba(18, 61, 62, 0.36);
+    background: linear-gradient(135deg, rgba(18, 61, 62, 0.94), rgba(14, 89, 96, 0.9));
+    box-shadow: 0 14px 30px rgba(18, 61, 62, 0.18);
+  }
+
+  .flow-index {
+    display: grid;
+    width: 40px;
+    height: 40px;
+    place-items: center;
+    border-radius: 8px;
+    background: rgba(18, 61, 62, 0.08);
+    color: #123d3e;
+    font-size: 0.78rem;
+    font-weight: 820;
+  }
+
+  .flow-stage.is-featured .flow-index {
+    background: rgba(255, 253, 248, 0.14);
+    color: #fffdf8;
+  }
+
+  .flow-title,
+  .flow-detail {
+    margin: 0;
+  }
+
+  .flow-title {
+    color: #141817;
+    font-size: 1.03rem;
+    font-weight: 800;
+    line-height: 1.35;
+  }
+
+  .flow-detail {
+    margin-top: 5px;
+    color: #68736d;
+    font-size: 0.94rem;
+    line-height: 1.72;
+  }
+
+  .flow-stage.is-featured .flow-title,
+  .flow-stage.is-featured .flow-detail {
+    color: #fffdf8;
+  }
+
+  .flow-stage.is-featured .flow-detail {
+    opacity: 0.82;
+  }
+
+  .flow-arrow {
+    width: 24px;
+    height: 34px;
+    justify-self: center;
+    color: #b55f46;
+    fill: none;
+    stroke: currentColor;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 2;
+  }
+
+  @media (min-width: 760px) {
+    .object-storage-flow {
+      padding: 22px;
+    }
+
+    .flow-stage {
+      grid-template-columns: 54px minmax(0, 1fr);
+      padding: 18px;
+    }
+
+    .flow-index {
+      width: 44px;
+      height: 44px;
+    }
+  }
+
+  @media (max-width: 560px) {
+    .object-storage-flow {
+      padding: 16px;
+    }
+
+    .flow-stage {
+      grid-template-columns: 42px minmax(0, 1fr);
+      gap: 12px;
+      padding: 14px;
+    }
+
+    .flow-index {
+      width: 36px;
+      height: 36px;
+    }
+  }
+</style>

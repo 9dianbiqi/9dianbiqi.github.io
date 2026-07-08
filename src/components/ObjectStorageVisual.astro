@@ -1,0 +1,632 @@
+---
+const visuals = {
+  'storage-roles': {
+    type: 'cards',
+    kicker: '存储职责',
+    title: '三类数据放在不同地方',
+    caption: '先按数据性质分工，再决定用数据库、对象存储还是本地磁盘。',
+    cards: [
+      {
+        label: '01',
+        title: '数据库存“业务数据”',
+        detail: '订单、用户、状态、关系和事务等结构化信息。',
+      },
+      {
+        label: '02',
+        title: '对象存储存“文件数据”',
+        detail: '图片、视频、附件、日志、备份等大文件对象。',
+        featured: true,
+      },
+      {
+        label: '03',
+        title: '本地磁盘存“运行时临时数据或本机文件”',
+        detail: '缓存、临时文件、单机运行依赖，通常不作为长期共享存储。',
+      },
+    ],
+  },
+  'object-formula': {
+    type: 'formula',
+    kicker: '对象结构',
+    title: '一个对象由三部分组成',
+    caption: '对象不是数据库里的对象，而是一个被存储和管理的文件单元。',
+    items: ['文件内容', '文件标识', '元数据'],
+    result: '共同构成一个可被保存、定位、访问和管理的对象。',
+  },
+  'object-key': {
+    type: 'path',
+    kicker: 'Object Key',
+    title: 'Bucket 决定容器，Key 决定对象位置',
+    caption: '把桶名和对象 Key 合在一起，就能定位到一个具体文件对象。',
+    rows: [
+      {
+        label: 'Bucket',
+        value: 'bucket: user-avatar',
+        detail: '文件所属的存储容器。',
+      },
+      {
+        label: 'Key',
+        value: 'key: 2026/07/08/u123/avatar.png',
+        detail: '桶内唯一的对象标识。',
+      },
+      {
+        label: '完整对象',
+        value: 'user-avatar / 2026/07/08/u123/avatar.png',
+        detail: '最终访问和管理时定位到的对象。',
+        featured: true,
+      },
+    ],
+  },
+  'key-prefix': {
+    type: 'token',
+    kicker: 'Key 前缀',
+    title: '看起来像目录，本质上仍是一个完整 Key',
+    caption: '斜杠通常只是命名约定，很多对象存储并不要求真实存在多级物理文件夹。',
+    token: 'images/2026/07/banner.png',
+    parts: ['images', '2026', '07', 'banner.png'],
+  },
+  'cdn-analogy': {
+    type: 'pair',
+    kicker: '类比记忆',
+    title: '对象存储负责保存，CDN 负责分发',
+    caption: '两者经常配合出现，但职责并不相同。',
+    pairs: [
+      {
+        label: '对象存储 = 仓库',
+        detail: '负责把文件放稳、管好权限、保留生命周期策略。',
+        featured: true,
+      },
+      {
+        label: 'CDN = 配送网络',
+        detail: '负责把热门资源缓存到更靠近用户的节点。',
+      },
+    ],
+  },
+  'cloud-native': {
+    type: 'topology',
+    kicker: '云原生位置',
+    title: '对象存储是应用系统旁边的文件基础设施',
+    caption: '流量从入口进入应用服务，结构化数据进数据库，文件类数据进对象存储。',
+    primary: ['用户 / 浏览器 / App', '域名 / CDN / 负载均衡', '前端服务 / 后端服务'],
+    branches: [
+      {
+        title: '数据库',
+        detail: '结构化业务数据',
+      },
+      {
+        title: '对象存储',
+        detail: '文件类数据',
+        featured: true,
+      },
+    ],
+    assets: '图片 / 视频 / 附件 / 静态资源 / 备份',
+  },
+  'summary-map': {
+    type: 'summary',
+    kicker: '总览',
+    title: '对象存储的核心要点',
+    caption: '把“存什么、为什么不用本地磁盘、核心概念、常见链路”放在一张记忆卡里。',
+    groups: [
+      {
+        title: '存什么',
+        items: ['图片', '视频', '文档', '静态资源', '日志', '备份'],
+      },
+      {
+        title: '为什么不用服务器本地磁盘',
+        items: ['不方便扩容', '不利于多机共享', '运维成本高', '公网分发不友好'],
+      },
+      {
+        title: '核心概念',
+        items: ['Bucket：桶', 'Object：对象', 'Key：对象标识', 'ACL / Policy：权限控制', 'Lifecycle：生命周期', 'Presigned URL：临时签名地址'],
+        featured: true,
+      },
+      {
+        title: '常见链路',
+        items: ['用户上传', '后端生成凭证', '上传到对象存储', '数据库存文件地址', '用户通过对象存储或 CDN 访问'],
+      },
+    ],
+  },
+};
+
+type VisualVariant = keyof typeof visuals;
+
+const { variant = 'storage-roles' } = Astro.props as { variant?: VisualVariant };
+const visual = visuals[variant] as any;
+
+if (!visual) {
+  throw new Error(`Unknown ObjectStorageVisual variant: ${variant}`);
+}
+---
+
+<figure class:list={['object-storage-visual', `is-${visual.type}`]} aria-labelledby={`object-storage-${variant}-title`}>
+  <figcaption>
+    <span class="visual-kicker">{visual.kicker}</span>
+    <span class="visual-title" id={`object-storage-${variant}-title`}>{visual.title}</span>
+    <span class="visual-caption">{visual.caption}</span>
+  </figcaption>
+
+  {
+    visual.type === 'cards' && (
+      <div class="visual-card-grid">
+        {visual.cards.map((card: any) => (
+          <section class:list={['visual-card', card.featured && 'is-featured']}>
+            <span class="visual-index">{card.label}</span>
+            <p class="visual-card-title">{card.title}</p>
+            <p class="visual-card-detail">{card.detail}</p>
+          </section>
+        ))}
+      </div>
+    )
+  }
+
+  {
+    visual.type === 'formula' && (
+      <>
+        <div class="formula-row" aria-label="文件内容加文件标识加元数据">
+          {visual.items.map((item: string, index: number) => (
+            <>
+              <span class="formula-pill">{item}</span>
+              {index < visual.items.length - 1 && (
+                <svg class="formula-plus" viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M12 5v14" />
+                  <path d="M5 12h14" />
+                </svg>
+              )}
+            </>
+          ))}
+        </div>
+        <p class="visual-result">{visual.result}</p>
+      </>
+    )
+  }
+
+  {
+    visual.type === 'path' && (
+      <div class="path-stack">
+        {visual.rows.map((row: any, index: number) => (
+          <>
+            <section class:list={['path-row', row.featured && 'is-featured']}>
+              <span class="path-label">{row.label}</span>
+              <code>{row.value}</code>
+              <p>{row.detail}</p>
+            </section>
+            {index < visual.rows.length - 1 && (
+              <svg class="visual-arrow" viewBox="0 0 24 34" aria-hidden="true">
+                <path d="M12 2v24" />
+                <path d="m5 19 7 7 7-7" />
+              </svg>
+            )}
+          </>
+        ))}
+      </div>
+    )
+  }
+
+  {
+    visual.type === 'token' && (
+      <div class="token-card">
+        <code>{visual.token}</code>
+        <div class="token-parts" aria-label="Key 前缀分段">
+          {visual.parts.map((part: string, index: number) => (
+            <>
+              <span>{part}</span>
+              {index < visual.parts.length - 1 && (
+                <svg class="token-separator" viewBox="0 0 18 18" aria-hidden="true">
+                  <path d="m6 3 6 6-6 6" />
+                </svg>
+              )}
+            </>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  {
+    visual.type === 'pair' && (
+      <div class="pair-grid">
+        {visual.pairs.map((pair: any) => (
+          <section class:list={['pair-card', pair.featured && 'is-featured']}>
+            <p class="pair-title">{pair.label}</p>
+            <p class="pair-detail">{pair.detail}</p>
+          </section>
+        ))}
+      </div>
+    )
+  }
+
+  {
+    visual.type === 'topology' && (
+      <div class="topology">
+        {visual.primary.map((node: string, index: number) => (
+          <>
+            <section class="topology-node">{node}</section>
+            {index < visual.primary.length - 1 && (
+              <svg class="visual-arrow" viewBox="0 0 24 34" aria-hidden="true">
+                <path d="M12 2v24" />
+                <path d="m5 19 7 7 7-7" />
+              </svg>
+            )}
+          </>
+        ))}
+        <div class="branch-grid">
+          {visual.branches.map((branch: any) => (
+            <section class:list={['branch-card', branch.featured && 'is-featured']}>
+              <p>{branch.title}</p>
+              <span>{branch.detail}</span>
+            </section>
+          ))}
+        </div>
+        <svg class="visual-arrow" viewBox="0 0 24 34" aria-hidden="true">
+          <path d="M12 2v24" />
+          <path d="m5 19 7 7 7-7" />
+        </svg>
+        <section class="asset-node">{visual.assets}</section>
+      </div>
+    )
+  }
+
+  {
+    visual.type === 'summary' && (
+      <div class="summary-grid">
+        {visual.groups.map((group: any, index: number) => (
+          <section class:list={['summary-card', group.featured && 'is-featured']}>
+            <span class="summary-index">{String(index + 1).padStart(2, '0')}</span>
+            <p>{group.title}</p>
+            <ul>
+              {group.items.map((item: string) => (
+                <li>{item}</li>
+              ))}
+            </ul>
+          </section>
+        ))}
+      </div>
+    )
+  }
+</figure>
+
+<style>
+  .object-storage-visual {
+    margin: 1.45rem 0;
+    border: 1px solid rgba(221, 217, 205, 0.92);
+    border-radius: 8px;
+    background:
+      linear-gradient(180deg, rgba(255, 253, 248, 0.97), rgba(248, 244, 234, 0.78)),
+      #fffdf8;
+    box-shadow: 0 16px 42px rgba(20, 24, 23, 0.08);
+    padding: 18px;
+  }
+
+  .object-storage-visual figcaption {
+    display: grid;
+    gap: 5px;
+    margin: 0 0 16px;
+  }
+
+  .visual-kicker {
+    color: #b55f46;
+    font-size: 0.78rem;
+    font-weight: 820;
+  }
+
+  .visual-title {
+    color: #141817;
+    font-size: 1.06rem;
+    font-weight: 840;
+    line-height: 1.35;
+  }
+
+  .visual-caption {
+    color: #68736d;
+    font-size: 0.94rem;
+    line-height: 1.65;
+  }
+
+  .visual-card-grid,
+  .pair-grid,
+  .summary-grid,
+  .branch-grid {
+    display: grid;
+    gap: 12px;
+  }
+
+  .visual-card,
+  .pair-card,
+  .summary-card,
+  .path-row,
+  .topology-node,
+  .asset-node,
+  .token-card {
+    border: 1px solid rgba(221, 217, 205, 0.95);
+    border-radius: 8px;
+    background: rgba(255, 253, 248, 0.94);
+    color: #141817;
+  }
+
+  .visual-card,
+  .pair-card,
+  .summary-card {
+    padding: 15px;
+  }
+
+  .visual-card.is-featured,
+  .pair-card.is-featured,
+  .summary-card.is-featured,
+  .path-row.is-featured,
+  .branch-card.is-featured {
+    border-color: rgba(18, 61, 62, 0.34);
+    background: linear-gradient(135deg, rgba(18, 61, 62, 0.95), rgba(14, 89, 96, 0.9));
+    box-shadow: 0 14px 30px rgba(18, 61, 62, 0.16);
+    color: #fffdf8;
+  }
+
+  .visual-index,
+  .summary-index,
+  .path-label {
+    display: inline-grid;
+    min-width: 34px;
+    height: 28px;
+    place-items: center;
+    border-radius: 8px;
+    background: rgba(18, 61, 62, 0.08);
+    color: #123d3e;
+    font-size: 0.74rem;
+    font-weight: 820;
+  }
+
+  .is-featured .visual-index,
+  .is-featured .summary-index,
+  .path-row.is-featured .path-label {
+    background: rgba(255, 253, 248, 0.14);
+    color: #fffdf8;
+  }
+
+  .visual-card-title,
+  .visual-card-detail,
+  .pair-title,
+  .pair-detail,
+  .summary-card p,
+  .summary-card ul,
+  .path-row p,
+  .branch-card p,
+  .branch-card span {
+    margin: 0;
+  }
+
+  .visual-card-title,
+  .pair-title,
+  .summary-card p {
+    margin-top: 10px;
+    color: #141817;
+    font-weight: 820;
+    line-height: 1.45;
+  }
+
+  .visual-card-detail,
+  .pair-detail,
+  .path-row p,
+  .branch-card span {
+    margin-top: 6px;
+    color: #68736d;
+    font-size: 0.92rem;
+    line-height: 1.65;
+  }
+
+  .is-featured .visual-card-title,
+  .is-featured .pair-title,
+  .summary-card.is-featured p,
+  .branch-card.is-featured p {
+    color: #fffdf8;
+  }
+
+  .is-featured .visual-card-detail,
+  .is-featured .pair-detail,
+  .path-row.is-featured p,
+  .branch-card.is-featured span {
+    color: rgba(255, 253, 248, 0.82);
+  }
+
+  .formula-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+  }
+
+  .formula-pill {
+    min-width: min(100%, 132px);
+    border: 1px solid rgba(221, 217, 205, 0.95);
+    border-radius: 8px;
+    background: rgba(255, 253, 248, 0.94);
+    padding: 13px 15px;
+    color: #123d3e;
+    font-weight: 820;
+    text-align: center;
+  }
+
+  .formula-plus,
+  .token-separator,
+  .visual-arrow {
+    color: #b55f46;
+    fill: none;
+    stroke: currentColor;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 2;
+  }
+
+  .formula-plus {
+    width: 20px;
+    height: 20px;
+    flex: 0 0 auto;
+  }
+
+  .visual-result {
+    margin: 14px 0 0;
+    border-left: 3px solid #b55f46;
+    padding-left: 12px;
+    color: #394540;
+    line-height: 1.7;
+  }
+
+  .path-stack {
+    display: grid;
+    justify-items: stretch;
+  }
+
+  .path-row {
+    display: grid;
+    gap: 8px;
+    padding: 15px;
+  }
+
+  .path-row code,
+  .token-card code {
+    overflow-wrap: anywhere;
+    border: 0;
+    border-radius: 8px;
+    background: rgba(18, 61, 62, 0.08);
+    color: #123d3e;
+    font-size: 0.92rem;
+    line-height: 1.55;
+    padding: 9px 10px;
+  }
+
+  .path-row.is-featured code {
+    background: rgba(255, 253, 248, 0.14);
+    color: #fffdf8;
+  }
+
+  .visual-arrow {
+    width: 24px;
+    height: 32px;
+    justify-self: center;
+  }
+
+  .token-card {
+    display: grid;
+    gap: 14px;
+    padding: 16px;
+  }
+
+  .token-card code {
+    display: block;
+    font-size: 1rem;
+  }
+
+  .token-parts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .token-parts span {
+    border-radius: 8px;
+    background: rgba(181, 95, 70, 0.1);
+    color: #7c3b2c;
+    font-size: 0.86rem;
+    font-weight: 760;
+    padding: 7px 10px;
+  }
+
+  .token-separator {
+    width: 16px;
+    height: 16px;
+  }
+
+  .topology {
+    display: grid;
+    justify-items: stretch;
+  }
+
+  .topology-node,
+  .asset-node {
+    padding: 14px;
+    text-align: center;
+    font-weight: 780;
+    line-height: 1.45;
+  }
+
+  .branch-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  .branch-card {
+    border: 1px solid rgba(221, 217, 205, 0.95);
+    border-radius: 8px;
+    background: rgba(255, 253, 248, 0.94);
+    padding: 14px;
+    text-align: center;
+  }
+
+  .branch-card p {
+    color: inherit;
+    font-weight: 840;
+    line-height: 1.45;
+  }
+
+  .asset-node {
+    border-color: rgba(181, 95, 70, 0.28);
+    background: rgba(181, 95, 70, 0.1);
+    color: #7c3b2c;
+  }
+
+  .summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .summary-card ul {
+    display: grid;
+    gap: 6px;
+    padding-left: 1.05rem;
+    margin-top: 10px;
+    color: #68736d;
+    font-size: 0.92rem;
+    line-height: 1.55;
+  }
+
+  .summary-card.is-featured ul {
+    color: rgba(255, 253, 248, 0.82);
+  }
+
+  .summary-card.is-featured li {
+    color: #fffdf8;
+  }
+
+  .summary-card.is-featured li::marker {
+    color: rgba(255, 253, 248, 0.84);
+  }
+
+  @media (min-width: 760px) {
+    .object-storage-visual {
+      padding: 22px;
+    }
+
+    .visual-card-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .pair-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @media (max-width: 620px) {
+    .object-storage-visual {
+      padding: 16px;
+    }
+
+    .formula-row {
+      display: grid;
+    }
+
+    .formula-plus {
+      justify-self: center;
+    }
+
+    .summary-grid,
+    .branch-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

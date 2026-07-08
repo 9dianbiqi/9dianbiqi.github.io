@@ -4,7 +4,7 @@
 
 **Goal:** Refresh the Astro blog UI and add per-article `essay`, `guide`, and `note` layout variants.
 
-**Architecture:** Keep the existing single article renderer and drive variants from Markdown frontmatter. Add a focused verification script, validate the new `layout` field in the Astro content schema, emit a template class from the article page, and implement the refreshed visual language plus variant rules in global CSS.
+**Architecture:** Keep the existing single article renderer and drive variants from Markdown frontmatter. Add a focused verification script, validate the new `articleLayout` field in the Astro content schema, emit a template class from the article page, and implement the refreshed visual language plus variant rules in global CSS.
 
 **Tech Stack:** Astro 7, TypeScript, Astro content collections, plain CSS, Node assertion scripts.
 
@@ -12,7 +12,7 @@
 
 - Do not add analytics, comments, search, a newsletter form, a theme switcher, or new dependencies.
 - Existing posts must build without requiring every Markdown file to be edited.
-- `layout` must support exactly `essay`, `guide`, and `note`, defaulting to `essay`.
+- `articleLayout` must support exactly `essay`, `guide`, and `note`, defaulting to `essay`.
 - The implementation should be mostly CSS plus the minimum schema/page changes needed for layout variants.
 - Preserve the skip link, visible keyboard focus states, reduced-motion handling, and static GitHub Pages output.
 
@@ -41,15 +41,15 @@ const read = (file) => readFileSync(file, 'utf8');
 const contentConfig = read('src/content.config.ts');
 assert.match(
   contentConfig,
-  /layout:\s*z\.enum\(\[\s*['"]essay['"],\s*['"]guide['"],\s*['"]note['"]\s*\]\)\.default\(['"]essay['"]\)/s,
-  'Blog content schema should validate layout as essay, guide, or note with essay default',
+  /articleLayout:\s*z\.enum\(\[\s*['"]essay['"],\s*['"]guide['"],\s*['"]note['"]\s*\]\)\.default\(['"]essay['"]\)/s,
+  'Blog content schema should validate articleLayout as essay, guide, or note with essay default',
 );
 
 const articlePage = read('src/pages/blog/[...slug].astro');
 assert.match(
   articlePage,
-  /post-template-\$\{post\.data\.layout\}/,
-  'Article page should apply a post-template-${post.data.layout} class',
+  /post-template-\$\{post\.data\.articleLayout\}/,
+  'Article page should apply a post-template-${post.data.articleLayout} class',
 );
 
 const styles = read('src/styles/global.css');
@@ -60,17 +60,17 @@ for (const selector of ['.prose blockquote', '.prose table', '.toc a']) {
   assert.ok(styles.includes(selector), `global.css should style ${selector}`);
 }
 
-const objectStoragePost = read('src/content/blog/cloud-object-storage-basics.md');
+const objectStoragePost = read('src/content/blog/cloud-object-storage-basics.mdx');
 assert.match(
   objectStoragePost,
-  /^layout:\s*guide$/m,
+  /^articleLayout:\s*["']?guide["']?$/m,
   'cloud-object-storage-basics should opt into the guide article layout',
 );
 
-const workflowPost = read('src/content/blog/codex-worktree-workflow.md');
+const workflowPost = read('src/content/blog/codex-worktree-workflow.mdx');
 assert.match(
   workflowPost,
-  /^layout:\s*note$/m,
+  /^articleLayout:\s*["']?note["']?$/m,
   'codex-worktree-workflow should opt into the note article layout',
 );
 
@@ -102,7 +102,7 @@ Expected: FAIL because the schema, article template class, CSS variants, and pos
 - Modify: `src/pages/blog/[...slug].astro`
 
 **Interfaces:**
-- Consumes: `post.data.layout` from Astro content entries.
+- Consumes: `post.data.articleLayout` from Astro content entries.
 - Produces: `layout` frontmatter validation and article classes `article-shell post-template-${layout}`.
 
 - [ ] **Step 1: Add schema field**
@@ -110,7 +110,7 @@ Expected: FAIL because the schema, article template class, CSS variants, and pos
 In `src/content.config.ts`, add:
 
 ```ts
-layout: z.enum(['essay', 'guide', 'note']).default('essay'),
+articleLayout: z.enum(['essay', 'guide', 'note']).default('essay'),
 ```
 
 near the existing optional presentation metadata.
@@ -120,7 +120,7 @@ near the existing optional presentation metadata.
 In `src/pages/blog/[...slug].astro`, change the article shell opening tag to:
 
 ```astro
-<article class={`article-shell post-template-${post.data.layout}`}>
+<article class={`article-shell post-template-${post.data.articleLayout}`}>
 ```
 
 - [ ] **Step 3: Run focused verification**
@@ -173,11 +173,11 @@ Keep mobile collapse at the existing breakpoints, ensure no horizontal overflow,
 ### Task 4: Sample Article Layout Assignments
 
 **Files:**
-- Modify: `src/content/blog/cloud-object-storage-basics.md`
-- Modify: `src/content/blog/codex-worktree-workflow.md`
+- Modify: `src/content/blog/cloud-object-storage-basics.mdx`
+- Modify: `src/content/blog/codex-worktree-workflow.mdx`
 
 **Interfaces:**
-- Consumes: new `layout` schema values.
+- Consumes: new `articleLayout` schema values.
 - Produces: one `guide` example and one `note` example.
 
 - [ ] **Step 1: Mark a guide post**
@@ -185,20 +185,20 @@ Keep mobile collapse at the existing breakpoints, ensure no horizontal overflow,
 Add:
 
 ```md
-layout: guide
+articleLayout: guide
 ```
 
-to `cloud-object-storage-basics.md`.
+to `cloud-object-storage-basics.mdx`.
 
 - [ ] **Step 2: Mark a note post**
 
 Add:
 
 ```md
-layout: note
+articleLayout: note
 ```
 
-to `codex-worktree-workflow.md`.
+to `codex-worktree-workflow.mdx`.
 
 - [ ] **Step 3: Verify GREEN for article layouts**
 
@@ -259,7 +259,7 @@ Check desktop and 375px mobile widths. There should be no horizontal page overfl
 Run:
 
 ```bash
-git add package.json scripts/verify-article-layouts.mjs src/content.config.ts src/pages/blog/[...slug].astro src/styles/global.css src/content/blog/cloud-object-storage-basics.md src/content/blog/codex-worktree-workflow.md docs/superpowers/plans/2026-07-08-blog-ui-refresh-implementation.md
+git add package.json scripts/verify-article-layouts.mjs src/content.config.ts src/pages/blog/[...slug].astro src/styles/global.css src/content/blog/cloud-object-storage-basics.mdx src/content/blog/codex-worktree-workflow.mdx docs/superpowers/plans/2026-07-08-blog-ui-refresh-implementation.md
 git commit -m "feat: refresh blog ui and article layouts"
 ```
 

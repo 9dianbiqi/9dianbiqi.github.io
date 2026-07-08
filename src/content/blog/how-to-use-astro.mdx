@@ -9,6 +9,8 @@ readingTime: "约 8 分钟"
 draft: false
 ---
 
+import ArticleVisual from '../../components/ArticleVisual.astro';
+
 Astro 很适合个人博客：它默认输出静态 HTML，页面加载快，Markdown 写作体验顺手，又允许在需要时引入组件。对个人站点来说，这意味着你可以先专注写内容，再逐步增加页面设计和交互。
 
 这篇文章记录我从零搭建博客时最需要理解的几件事：项目结构、页面路由、内容集合、样式组织和 GitHub Pages 发布。
@@ -34,23 +36,26 @@ npm run dev
 
 一个博客项目可以保持很简单：
 
-```text
-src/
-  content/
-    blog/
-      how-to-use-astro.md
-  layouts/
-    BaseLayout.astro
-  pages/
-    index.astro
-    blog/
-      index.astro
-      [...slug].astro
-  styles/
-    global.css
-public/
-  images/
-```
+<ArticleVisual
+  title={"2. 理解目录结构"}
+  lines={[
+    "src/",
+    "  content/",
+    "    blog/",
+    "      how-to-use-astro.md",
+    "  layouts/",
+    "    BaseLayout.astro",
+    "  pages/",
+    "    index.astro",
+    "    blog/",
+    "      index.astro",
+    "      [...slug].astro",
+    "  styles/",
+    "    global.css",
+    "public/",
+    "  images/"
+  ]}
+/>
 
 `src/pages` 决定网站路由，`src/layouts` 放通用页面骨架，`src/content/blog` 放 Markdown 文章，`public` 放不需要构建处理的静态资源。
 

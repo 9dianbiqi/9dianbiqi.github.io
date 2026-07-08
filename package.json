@@ -10,12 +10,15 @@
     "verify:home": "node scripts/verify-home-config.mjs",
     "verify:obsidian": "node scripts/verify-obsidian-workflow.mjs",
     "verify:article-layouts": "node scripts/verify-article-layouts.mjs",
+    "verify:article-visuals": "node scripts/verify-article-visuals.mjs",
+    "verify:object-flow": "node scripts/verify-object-storage-flow.mjs",
     "verify:post-nav": "node scripts/verify-post-navigation.mjs",
     "preview": "astro preview",
     "astro": "astro"
   },
   "dependencies": {
     "@astrojs/check": "^0.9.5",
+    "@astrojs/mdx": "^7.0.2",
     "astro": "^7.0.3",
     "typescript": "^5.9.2"
   }
