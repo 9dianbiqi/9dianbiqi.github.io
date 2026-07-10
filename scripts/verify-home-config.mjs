@@ -4,9 +4,8 @@ import assert from 'node:assert/strict';
 const requiredFiles = [
   'src/site.config.ts',
   'src/components/HomeHero.astro',
-  'src/components/FeaturedPost.astro',
-  'src/components/LearningPath.astro',
-  'src/components/ImageStrip.astro',
+  'src/components/RecentPosts.astro',
+  'src/components/TopicGrid.astro',
   'src/scripts/reveal.ts',
 ];
 
@@ -16,12 +15,16 @@ for (const file of requiredFiles) {
 
 const config = readFileSync('src/site.config.ts', 'utf8');
 assert.match(config, /export const home/, 'site.config.ts should export home configuration');
-assert.match(config, /imageStrip/, 'home configuration should define an image strip');
-assert.match(config, /learningPath/, 'home configuration should define learning path items');
+assert.match(config, /recent:/, 'home configuration should define recent-post copy');
+assert.match(config, /topics:/, 'home configuration should define featured topics');
+assert.match(config, /阅读最新文章/, 'home hero should point readers to the latest article');
 
 const index = readFileSync('src/pages/index.astro', 'utf8');
-for (const component of ['HomeHero', 'FeaturedPost', 'LearningPath', 'ImageStrip']) {
+for (const component of ['HomeHero', 'RecentPosts', 'TopicGrid']) {
   assert.match(index, new RegExp(component), `Homepage should use ${component}`);
+}
+for (const legacyComponent of ['FeaturedPost', 'LearningPath', 'ImageStrip']) {
+  assert.doesNotMatch(index, new RegExp(legacyComponent), `Homepage should not use ${legacyComponent}`);
 }
 
 const layout = readFileSync('src/layouts/BaseLayout.astro', 'utf8');

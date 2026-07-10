@@ -1,0 +1,43 @@
+---
+import type { CollectionEntry } from 'astro:content';
+
+interface Props {
+  posts: CollectionEntry<'blog'>[];
+  eyebrow: string;
+  title: string;
+  description: string;
+}
+
+const { posts, eyebrow, title, description } = Astro.props;
+const formatDate = (date: Date) =>
+  new Intl.DateTimeFormat('zh-CN', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  }).format(date);
+---
+
+<section class="content-band recent-section reveal">
+  <div class="section-heading">
+    <p class="eyebrow">{eyebrow}</p>
+    <div>
+      <h2>{title}</h2>
+      <p class="section-description">{description}</p>
+    </div>
+  </div>
+  <div class="recent-posts">
+    {
+      posts.map((post, index) => (
+        <article class:list={['recent-post-card', { 'is-featured': index === 0 }]}>
+          <p class="meta">{formatDate(post.data.pubDate)} · {post.data.readingTime}</p>
+          <h3><a href={`/blog/${post.id}/`}>{post.data.title}</a></h3>
+          <p class="recent-post-description">{post.data.description}</p>
+          <ul class="tag-list" aria-label={`${post.data.title} 标签`}>
+            {post.data.tags.slice(0, 3).map((tag) => <li>{tag}</li>)}
+          </ul>
+        </article>
+      ))
+    }
+  </div>
+  <p class="section-action"><a href="/blog/">浏览全部文章</a></p>
+</section>

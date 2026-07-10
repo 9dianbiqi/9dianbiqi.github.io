@@ -1,6 +1,8 @@
 ---
 import { getCollection } from 'astro:content';
 import BaseLayout from '../../layouts/BaseLayout.astro';
+import { getArchiveTagGroups } from '../../lib/archiveFilter.mjs';
+import { home } from '../../site.config';
 
 const posts = (await getCollection('blog', ({ data }) => !data.draft)).sort(
   (a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf(),
@@ -12,6 +14,12 @@ const formatDate = (date: Date) =>
     month: 'long',
     day: 'numeric',
   }).format(date);
+
+const { primary: primaryTags, secondary: secondaryTags } = getArchiveTagGroups(
+  posts,
+  home.topics.items.map((topic) => topic.tag),
+  6,
+);
 ---
 
 <BaseLayout title="文章 | 9dianbiqi" description="9dianbiqi 的技术博客文章归档。">
@@ -21,20 +29,72 @@ const formatDate = (date: Date) =>
     <p>把学习路径、踩坑记录和工程实践整理成可以回看的笔记。</p>
   </section>
 
+  <section class="archive-tools" data-archive-tools hidden aria-label="文章筛选">
+    <div class="archive-search">
+      <label for="archive-search">搜索文章</label>
+      <input
+        id="archive-search"
+        type="search"
+        placeholder="搜索标题、摘要或标签"
+        autocomplete="off"
+        data-archive-search
+      />
+    </div>
+    <div class="archive-tag-filter">
+      <p>按标签筛选</p>
+      <div class="archive-tags">
+        <button type="button" data-archive-tag="" aria-pressed="true">全部</button>
+        {primaryTags.map((tag) => <button type="button" data-archive-tag={tag} aria-pressed="false">{tag}</button>)}
+      </div>
+      {
+        secondaryTags.length > 0 && (
+          <details class="archive-more-tags" data-archive-more>
+            <summary>更多标签（{secondaryTags.length}）</summary>
+            <div class="archive-tags">
+              {secondaryTags.map((tag) => (
+                <button type="button" data-archive-tag={tag} aria-pressed="false">{tag}</button>
+              ))}
+            </div>
+          </details>
+        )
+      }
+    </div>
+    <p class="archive-result-count" data-archive-count aria-live="polite">共 {posts.length} 篇文章</p>
+  </section>
+
   <section class="post-list" aria-label="文章列表">
     {
       posts.map((post) => (
-        <article class="post-row">
+        <article
+          class="post-row"
+          data-archive-post
+          data-search-text={`${post.data.title} ${post.data.description} ${post.data.tags.join(' ')}`}
+          data-tags={JSON.stringify(post.data.tags)}
+        >
           <div>
             <p class="meta">{formatDate(post.data.pubDate)} · {post.data.readingTime}</p>
             <h2><a href={`/blog/${post.id}/`}>{post.data.title}</a></h2>
-            <p>{post.data.description}</p>
+            <p class="post-description">{post.data.description}</p>
           </div>
           <ul class="tag-list" aria-label={`${post.data.title} 标签`}>
-            {post.data.tags.map((tag) => <li>{tag}</li>)}
+            {post.data.tags.slice(0, 3).map((tag) => <li>{tag}</li>)}
+            {post.data.tags.length > 3 && (
+              <li class="tag-more" aria-label={`还有 ${post.data.tags.length - 3} 个标签`}>
+                +{post.data.tags.length - 3}
+              </li>
+            )}
           </ul>
         </article>
       ))
     }
+    <div class="archive-empty" data-archive-empty hidden>
+      <h2>没有找到匹配的文章</h2>
+      <p>可以换一个关键词，或者清除当前标签筛选。</p>
+      <button class="button secondary" type="button" data-archive-reset>清除筛选</button>
+    </div>
   </section>
+
+  <script>
+    import '../../scripts/archive-filter';
+  </script>
 </BaseLayout>

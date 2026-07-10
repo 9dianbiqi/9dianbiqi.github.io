@@ -90,7 +90,7 @@ readingTime: "约 14 分钟"
 
 在 Linux 服务器上导出数据库，通常需要先确认这些前置条件。
 
-## 1. 你知道数据库类型
+### 1. 你知道数据库类型
 
 最常见是：
 
@@ -102,7 +102,7 @@ readingTime: "约 14 分钟"
 - MySQL 常用 `mysqldump`
 - PostgreSQL 常用 `pg_dump`
 
-## 2. 你有服务器登录权限
+### 2. 你有服务器登录权限
 
 你至少得能：
 
@@ -111,7 +111,7 @@ readingTime: "约 14 分钟"
 - 看磁盘空间
 - 创建导出目录
 
-## 3. 你有数据库连接信息
+### 3. 你有数据库连接信息
 
 至少要知道：
 
@@ -121,7 +121,7 @@ readingTime: "约 14 分钟"
 - 密码
 - 数据库名
 
-## 4. 你有足够权限
+### 4. 你有足够权限
 
 需要确认自己是否有：
 
@@ -129,7 +129,7 @@ readingTime: "约 14 分钟"
 - 导出权限
 - 保存文件到目标目录的权限
 
-## 5. 你知道导出文件可能很大
+### 5. 你知道导出文件可能很大
 
 这点非常重要。
 
@@ -380,14 +380,14 @@ scp your_user@server:/data/db_exports/2026-07-09/mysql_order_prod_full_20260709_
 
 下面给一个适合入门理解的基本流程。
 
-## 1. 先建目录
+### 1. 先建目录
 
 ```bash
 mkdir -p /data/db_exports/2026-07-09
 cd /data/db_exports/2026-07-09
 ```
 
-## 2. 导出整个库
+### 2. 导出整个库
 
 ```bash
 mysqldump -h 127.0.0.1 -P 3306 -u db_user -p database_name > mysql_database_name_full_20260709_103000.sql
@@ -395,32 +395,32 @@ mysqldump -h 127.0.0.1 -P 3306 -u db_user -p database_name > mysql_database_name
 
 执行后会提示输入密码。
 
-### 说明
+#### 说明
 
 - `-h`：数据库地址
 - `-P`：端口
 - `-u`：用户名
 - `-p`：输入密码
 
-## 3. 导出指定表
+### 3. 导出指定表
 
 ```bash
 mysqldump -h 127.0.0.1 -P 3306 -u db_user -p database_name table_a table_b > mysql_database_name_tables_20260709_103500.sql
 ```
 
-## 4. 只导出结构
+### 4. 只导出结构
 
 ```bash
 mysqldump -h 127.0.0.1 -P 3306 -u db_user -p --no-data database_name > mysql_database_name_schema_20260709_104000.sql
 ```
 
-## 5. 导出后压缩
+### 5. 导出后压缩
 
 ```bash
 gzip mysql_database_name_full_20260709_103000.sql
 ```
 
-## 6. 校验
+### 6. 校验
 
 ```bash
 ls -lh
@@ -431,14 +431,14 @@ sha256sum mysql_database_name_full_20260709_103000.sql.gz
 
 PostgreSQL 常用 `pg_dump`。
 
-## 1. 先建目录
+### 1. 先建目录
 
 ```bash
 mkdir -p /data/db_exports/2026-07-09
 cd /data/db_exports/2026-07-09
 ```
 
-## 2. 导出整个库
+### 2. 导出整个库
 
 ```bash
 pg_dump -h 127.0.0.1 -p 5432 -U db_user -d database_name -f postgres_database_name_full_20260709_110000.sql
@@ -446,7 +446,7 @@ pg_dump -h 127.0.0.1 -p 5432 -U db_user -d database_name -f postgres_database_na
 
 执行时通常会要求输入密码，或者依赖环境配置。
 
-## 3. 使用自定义格式导出
+### 3. 使用自定义格式导出
 
 ```bash
 pg_dump -h 127.0.0.1 -p 5432 -U db_user -d database_name -Fc -f postgres_database_name_full_20260709_110500.dump
@@ -458,13 +458,13 @@ pg_dump -h 127.0.0.1 -p 5432 -U db_user -d database_name -Fc -f postgres_databas
 
 这种格式常用于后续恢复和迁移。
 
-## 4. 导出指定表
+### 4. 导出指定表
 
 ```bash
 pg_dump -h 127.0.0.1 -p 5432 -U db_user -d database_name -t table_a -t table_b -f postgres_database_name_partial_20260709_111000.sql
 ```
 
-## 5. 导出后压缩
+### 5. 导出后压缩
 
 如果你导出的是 `.sql`：
 
@@ -474,7 +474,7 @@ gzip postgres_database_name_full_20260709_110000.sql
 
 如果是 `.dump`，也可以视情况再压缩。
 
-## 6. 校验
+### 6. 校验
 
 ```bash
 ls -lh
@@ -485,7 +485,7 @@ sha256sum postgres_database_name_full_20260709_110500.dump
 
 这部分我单独列出来，因为工作里真正出事的 often 不在导出命令本身。
 
-## 1. 导出到系统盘，结果把磁盘打满
+### 1. 导出到系统盘，结果把磁盘打满
 
 比如误导出到：
 
@@ -504,7 +504,7 @@ pwd
 df -h
 ```
 
-## 2. 文件名没有时间戳，被新文件覆盖
+### 2. 文件名没有时间戳，被新文件覆盖
 
 如果你总叫：
 
@@ -514,7 +514,7 @@ backup.sql
 
 那下一次就很可能覆盖掉上一次。
 
-## 3. 只导出不校验，结果拿到的是不完整文件
+### 3. 只导出不校验，结果拿到的是不完整文件
 
 命令成功退出，不等于导出的内容一定符合预期。  
 至少要做：
@@ -523,7 +523,7 @@ backup.sql
 - 文件大小检查
 - hash 校验
 
-## 4. 敏感数据导出后长期留在服务器
+### 4. 敏感数据导出后长期留在服务器
 
 这很常见，也很危险。
 
@@ -533,7 +533,7 @@ backup.sql
 - 或移交到安全存储
 - 或做权限收口
 
-## 5. 通过不安全方式传播
+### 5. 通过不安全方式传播
 
 真实库导出文件不是普通资料。  
 不要默认它可以像截图、文档一样到处发。

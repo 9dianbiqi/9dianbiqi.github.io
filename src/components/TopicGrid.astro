@@ -1,0 +1,41 @@
+---
+interface Topic {
+  tag: string;
+  description: string;
+  count: number;
+  href: string;
+}
+
+interface Props {
+  topics: Topic[];
+  eyebrow: string;
+  title: string;
+  description: string;
+}
+
+const { topics, eyebrow, title, description } = Astro.props;
+---
+
+{
+  topics.length > 0 && (
+    <section class="content-band topic-section reveal">
+      <div class="section-heading">
+        <p class="eyebrow">{eyebrow}</p>
+        <div>
+          <h2>{title}</h2>
+          <p class="section-description">{description}</p>
+        </div>
+      </div>
+      <div class="topic-grid">
+        {topics.map((topic) => (
+          <a class="topic-card" href={topic.href}>
+            <span class="topic-count">{topic.count} 篇文章</span>
+            <h3>{topic.tag}</h3>
+            <p>{topic.description}</p>
+            <span class="topic-card-action" aria-hidden="true">查看专题 →</span>
+          </a>
+        ))}
+      </div>
+    </section>
+  )
+}

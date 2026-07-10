@@ -1,33 +1,33 @@
 ---
 import { getCollection } from 'astro:content';
 import BaseLayout from '../layouts/BaseLayout.astro';
-import FeaturedPost from '../components/FeaturedPost.astro';
 import HomeHero from '../components/HomeHero.astro';
-import ImageStrip from '../components/ImageStrip.astro';
-import LearningPath from '../components/LearningPath.astro';
+import RecentPosts from '../components/RecentPosts.astro';
+import TopicGrid from '../components/TopicGrid.astro';
+import { getFeaturedTopics, getRecentPosts } from '../lib/homeContent.mjs';
 import { home } from '../site.config';
 
 const posts = (await getCollection('blog', ({ data }) => !data.draft)).sort(
   (a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf(),
 );
 
-const featuredPost = posts[0];
-const formatDate = (date: Date) =>
-  new Intl.DateTimeFormat('zh-CN', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  }).format(date);
+const recentPosts = getRecentPosts(posts, 3);
+const topics = getFeaturedTopics(posts, home.topics.items);
+const latestPostHref = recentPosts[0] ? `/blog/${recentPosts[0].id}/` : '/blog/';
 ---
 
 <BaseLayout>
-  <HomeHero hero={home.hero} />
-  <FeaturedPost
-    post={featuredPost}
-    eyebrow={home.featured.eyebrow}
-    title={home.featured.title}
-    formattedDate={formatDate(featuredPost.data.pubDate)}
+  <HomeHero hero={home.hero} latestPostHref={latestPostHref} />
+  <RecentPosts
+    posts={recentPosts}
+    eyebrow={home.recent.eyebrow}
+    title={home.recent.title}
+    description={home.recent.description}
   />
-  <LearningPath learningPath={home.learningPath} />
-  <ImageStrip imageStrip={home.imageStrip} />
+  <TopicGrid
+    topics={topics}
+    eyebrow={home.topics.eyebrow}
+    title={home.topics.title}
+    description={home.topics.description}
+  />
 </BaseLayout>

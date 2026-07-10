@@ -1,7 +1,9 @@
 ---
 import { getCollection, render } from 'astro:content';
 import BaseLayout from '../../layouts/BaseLayout.astro';
+import ArticleToc from '../../components/ArticleToc.astro';
 import { getPostNavigation } from '../../lib/postNavigation.mjs';
+import { buildToc } from '../../lib/toc.mjs';
 
 export async function getStaticPaths() {
   const posts = await getCollection('blog', ({ data }) => !data.draft);
@@ -23,7 +25,7 @@ const formatDate = (date: Date) =>
     month: 'long',
     day: 'numeric',
   }).format(date);
-const toc = headings.filter((heading) => heading.depth > 1 && heading.depth < 4);
+const toc = buildToc(headings);
 ---
 
 <BaseLayout title={title} description={post.data.description} image={post.data.heroImage}>
@@ -34,7 +36,9 @@ const toc = headings.filter((heading) => heading.depth > 1 && heading.depth < 4)
       <p class="article-description">{post.data.description}</p>
       <div class="article-meta">
         <span>{formatDate(post.data.pubDate)}</span>
+        <span class="article-meta-separator" aria-hidden="true">·</span>
         <span>{post.data.readingTime}</span>
+        <span class="article-meta-separator" aria-hidden="true">·</span>
         <span>Astro + GitHub Pages</span>
       </div>
       <ul class="tag-list" aria-label="文章标签">
@@ -50,12 +54,7 @@ const toc = headings.filter((heading) => heading.depth > 1 && heading.depth < 4)
     </header>
 
     <div class="article-layout">
-      <aside class="toc" aria-label="文章目录">
-        <p>目录</p>
-        <nav>
-          {toc.map((heading) => <a href={`#${heading.slug}`}>{heading.text}</a>)}
-        </nav>
-      </aside>
+      <ArticleToc items={toc} layout={post.data.articleLayout} />
       <div class="prose">
         <Content />
 

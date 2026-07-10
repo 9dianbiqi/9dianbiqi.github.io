@@ -16,9 +16,13 @@ interface Props {
     imageAlt: string;
     actions: Action[];
   };
+  latestPostHref: string;
 }
 
-const { hero } = Astro.props;
+const { hero, latestPostHref } = Astro.props;
+const actions = hero.actions.map((action, index) =>
+  index === 0 ? { ...action, href: latestPostHref } : action,
+);
 ---
 
 <section class="hero-section reveal">
@@ -28,7 +32,7 @@ const { hero } = Astro.props;
     <p class="hero-lede">{hero.description}</p>
     <div class="hero-actions" aria-label="快捷入口">
       {
-        hero.actions.map((action) => (
+        actions.map((action) => (
           <a class={`button ${action.variant}`} href={action.href}>
             {action.label}
           </a>
