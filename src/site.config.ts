@@ -10,66 +10,42 @@ export const site = {
 
 export const home = {
   hero: {
-    eyebrow: 'Astro / Frontend / Notes',
-    title: '把学习过程写成可以反复使用的个人知识库。',
+    eyebrow: 'Frontend / Cloud / Data / Security',
+    title: '把复杂技术整理成可以随时回看的清晰笔记。',
     description:
-      '这里记录我搭建个人博客、学习前端框架和整理工程实践的过程。第一篇从 Astro 开始：为什么选它、如何组织内容、怎样发布到 GitHub Pages。',
+      '记录前端工程、云基础设施、数据库与安全实践，把学习过程沉淀成可检索、可复用的个人知识库。',
     image: heroImage,
     imageAlt: '书桌上的笔记本电脑、前端草图和 Markdown、Components、Deploy 学习卡片',
     actions: [
-      { label: '阅读第一篇', href: '/blog/how-to-use-astro/', variant: 'primary' },
-      { label: '查看文章', href: '/blog/', variant: 'secondary' },
+      { label: '阅读最新文章', href: '/blog/', variant: 'primary' },
+      { label: '浏览全部文章', href: '/blog/', variant: 'secondary' },
     ],
   },
-  featured: {
-    eyebrow: 'Start Here',
-    title: '第一条博客',
+  recent: {
+    eyebrow: 'Latest Notes',
+    title: '最近更新',
+    description: '从最新整理的实践笔记开始，快速了解近期关注的技术主题。',
   },
-  learningPath: {
-    eyebrow: 'Learning Path',
-    title: '我会这样学习 Astro',
+  topics: {
+    eyebrow: 'Topics',
+    title: '从专题开始',
+    description: '按稳定主题串起相关笔记，比在时间线里逐篇寻找更高效。',
     items: [
       {
-        step: '01',
-        title: '先跑通项目',
-        text: '从最小可运行项目开始，理解页面路由、布局和静态构建。',
+        tag: '云原生',
+        description: '从 ECS、Kubernetes 到分布式系统，建立基础设施视角。',
       },
       {
-        step: '02',
-        title: '再组织内容',
-        text: '用 Content Collections 管理 Markdown，让文章元数据可校验、可排序。',
+        tag: '数据库',
+        description: '围绕数据库操作、数据流转与安全保存整理实用清单。',
       },
       {
-        step: '03',
-        title: '最后自动发布',
-        text: '把构建交给 GitHub Actions，主分支推送后自动更新 GitHub Pages。',
-      },
-    ],
-  },
-  imageStrip: {
-    eyebrow: 'Homepage System',
-    title: '第一版首页配置',
-    items: [
-      {
-        title: '主图资产',
-        text: '首页图片从配置读取，并交给 Astro 图片管线处理尺寸与性能。',
-        image: heroImage,
-        imageAlt: '学习 Astro 的桌面主图局部',
-        objectPosition: 'center',
+        tag: '前端工程',
+        description: '记录 Vue、Astro 与系统集成中的工程化实践。',
       },
       {
-        title: '内容模块',
-        text: '首页模块拆成组件，后续新增栏目时只改配置和少量组件。',
-        image: heroImage,
-        imageAlt: 'Markdown、Components、Deploy 学习卡片局部',
-        objectPosition: 'bottom',
-      },
-      {
-        title: '轻量动效',
-        text: '滚动进入时轻微出现，并尊重系统的 reduced motion 设置。',
-        image: heroImage,
-        imageAlt: '笔记本电脑上的代码编辑器局部',
-        objectPosition: 'right',
+        tag: '安全',
+        description: '理解身份认证、网络访问和真实业务中的安全边界。',
       },
     ],
   },

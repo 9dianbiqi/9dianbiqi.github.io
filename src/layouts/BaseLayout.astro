@@ -16,6 +16,9 @@ const {
 } = Astro.props;
 
 const canonical = new URL(Astro.url.pathname, Astro.site ?? site.url);
+const pathname = Astro.url.pathname;
+const isHome = pathname === '/';
+const isBlog = pathname.startsWith('/blog/');
 ---
 
 <!doctype html>
@@ -44,8 +47,8 @@ const canonical = new URL(Astro.url.pathname, Astro.site ?? site.url);
           <span class="brand-text">{site.author}</span>
         </a>
         <div class="nav-links">
-          <a href="/">首页</a>
-          <a href="/blog/">文章</a>
+          <a href="/" aria-current={isHome ? 'page' : undefined}>首页</a>
+          <a href="/blog/" aria-current={isBlog ? 'page' : undefined}>文章</a>
           <a href={site.githubUrl} rel="noreferrer">GitHub</a>
         </div>
       </nav>

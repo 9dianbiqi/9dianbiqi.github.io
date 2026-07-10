@@ -1,0 +1,57 @@
+---
+interface TocChild {
+  depth: 3;
+  slug: string;
+  text: string;
+}
+
+interface TocItem {
+  depth: 2;
+  slug: string;
+  text: string;
+  children: TocChild[];
+}
+
+interface Props {
+  items: TocItem[];
+  layout: 'essay' | 'guide' | 'note';
+}
+
+const { items, layout } = Astro.props;
+---
+
+{
+  items.length > 0 && (
+    <aside class="toc-shell" aria-label="文章目录">
+      <details class="toc" data-article-toc data-toc-layout={layout}>
+        <summary class="toc-summary">
+          <span>文章目录</span>
+          <span class="toc-count">{items.length} 节</span>
+        </summary>
+        <nav aria-label="文章章节">
+          <ol class="toc-list">
+            {items.map((item) => (
+              <li class="toc-item">
+                <a data-toc-link href={`#${item.slug}`}>{item.text}</a>
+                {item.children.length > 0 && (
+                  <details class="toc-group" open={item.children.length <= 3}>
+                    <summary>{item.children.length} 个小节</summary>
+                    <ol>
+                      {item.children.map((child) => (
+                        <li><a data-toc-link href={`#${child.slug}`}>{child.text}</a></li>
+                      ))}
+                    </ol>
+                  </details>
+                )}
+              </li>
+            ))}
+          </ol>
+        </nav>
+      </details>
+    </aside>
+  )
+}
+
+<script>
+  import '../scripts/article-toc';
+</script>
