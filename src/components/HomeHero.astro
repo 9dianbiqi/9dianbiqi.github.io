@@ -14,6 +14,11 @@ interface Props {
     description: string;
     image: ImageMetadata;
     imageAlt: string;
+    video?: {
+      src: string;
+      poster: string;
+      type?: string;
+    };
     actions: Action[];
   };
   latestPostHref: string;
@@ -25,7 +30,16 @@ const actions = hero.actions.map((action, index) =>
 );
 ---
 
-<section class="hero-section reveal">
+<section class:list={['hero-section', hero.video && 'hero-video-section', 'reveal']}>
+  {
+    hero.video && (
+      <div class="hero-video-background" aria-hidden="true">
+        <video autoplay muted loop playsinline poster={hero.video.poster}>
+          <source src={hero.video.src} type={hero.video.type ?? 'video/mp4'} />
+        </video>
+      </div>
+    )
+  }
   <div class="hero-copy">
     <p class="eyebrow">{hero.eyebrow}</p>
     <h1>{hero.title}</h1>
@@ -40,14 +54,18 @@ const actions = hero.actions.map((action, index) =>
       }
     </div>
   </div>
-  <figure class="hero-media">
-    <Image
-      src={hero.image}
-      alt={hero.imageAlt}
-      widths={[640, 960, 1280, 1536]}
-      sizes="(max-width: 900px) calc(100vw - 28px), 48vw"
-      loading="eager"
-      decoding="async"
-    />
-  </figure>
+  {
+    !hero.video && (
+      <figure class="hero-media">
+        <Image
+          src={hero.image}
+          alt={hero.imageAlt}
+          widths={[640, 960, 1280, 1536]}
+          sizes="(max-width: 900px) calc(100vw - 28px), 48vw"
+          loading="eager"
+          decoding="async"
+        />
+      </figure>
+    )
+  }
 </section>

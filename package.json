@@ -8,6 +8,7 @@
     "build": "astro check && astro build",
     "import:obsidian": "node scripts/import-obsidian.mjs",
     "verify:home": "node scripts/verify-home-config.mjs",
+    "verify:home-video": "node scripts/verify-home-video.mjs",
     "verify:obsidian": "node scripts/verify-obsidian-workflow.mjs",
     "verify:article-layouts": "node scripts/verify-article-layouts.mjs",
     "verify:article-visuals": "node scripts/verify-article-visuals.mjs",

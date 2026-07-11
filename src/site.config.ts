@@ -16,6 +16,11 @@ export const home = {
       '记录前端工程、云基础设施、数据库与安全实践，把学习过程沉淀成可检索、可复用的个人知识库。',
     image: heroImage,
     imageAlt: '书桌上的笔记本电脑、前端草图和 Markdown、Components、Deploy 学习卡片',
+    video: {
+      src: '/media/home/hero-video.mp4',
+      poster: '/media/home/hero-poster.jpg',
+      type: 'video/mp4',
+    },
     actions: [
       { label: '阅读最新文章', href: '/blog/', variant: 'primary' },
       { label: '浏览全部文章', href: '/blog/', variant: 'secondary' },
