@@ -1,6 +1,7 @@
 ---
 import { ClientRouter } from 'astro:transitions';
 import { site } from '../site.config';
+import MusicPlayer from '../components/music-player/MusicPlayer.astro';
 import globalStylesUrl from '../styles/global.css?url';
 
 interface Props {
@@ -63,6 +64,7 @@ const isBlog = pathname.startsWith('/blog/');
         <p><a href="/blog/">阅读全部文章</a></p>
       </div>
     </footer>
+    <MusicPlayer transition:persist="music-player" />
     <script>
       import '../scripts/reveal';
     </script>

@@ -7,6 +7,10 @@ dist/
 *.log
 preview.pid
 qa-screenshots/
+test-results/
+playwright-report/
+worker/.dev.vars
+worker/.wrangler/
 obsidian/vault/
 obsidian/private/
 .obsidian/

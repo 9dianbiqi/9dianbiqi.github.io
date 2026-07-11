@@ -17,6 +17,8 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      PUBLIC_MUSIC_WORKER_URL: ${{ vars.PUBLIC_MUSIC_WORKER_URL }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
