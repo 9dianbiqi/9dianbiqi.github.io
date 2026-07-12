@@ -1,0 +1,15 @@
+---
+import { musicPlayerConfig } from '../../music.config';
+import { parseSpotifyPlaylistUrl } from './spotify-embed';
+import { validateQishuiTracks } from './validation';
+
+parseSpotifyPlaylistUrl(musicPlayerConfig.spotify.playlistUrl);
+validateQishuiTracks(musicPlayerConfig.qishuiTracks);
+---
+
+<music-player data-config={JSON.stringify(musicPlayerConfig)}>
+</music-player>
+
+<script>
+  import './music-player';
+</script>

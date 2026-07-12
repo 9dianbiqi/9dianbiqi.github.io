@@ -18,6 +18,10 @@
     "verify:content-first-ui": "node scripts/verify-content-first-ui.mjs",
     "verify:object-flow": "node scripts/verify-object-storage-flow.mjs",
     "verify:post-nav": "node scripts/verify-post-navigation.mjs",
+    "verify:music-player": "node scripts/verify-music-player.mjs",
+    "test": "npm run test:player",
+    "test:player": "vitest run src/components/music-player",
+    "test:e2e": "playwright test",
     "preview": "astro preview",
     "astro": "astro"
   },
@@ -26,5 +30,10 @@
     "@astrojs/mdx": "^7.0.2",
     "astro": "^7.0.3",
     "typescript": "^5.9.2"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.61.1",
+    "jsdom": "^29.1.1",
+    "vitest": "^4.1.10"
   }
 }
