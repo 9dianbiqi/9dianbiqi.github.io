@@ -371,7 +371,7 @@ git status --short
 
 Expected: 没有运行时代码或部署文档残留；只有历史计划/规格允许提到已删除架构；`git diff --check` exit 0。
 
-- [ ] **Step 4: 提交计划完成状态并推送**
+- [x] **Step 4: 提交计划完成状态并推送**
 
 ```bash
 git add docs/superpowers/plans/2026-07-12-spotify-embed-player.md
@@ -379,6 +379,6 @@ git commit -m "docs: complete Spotify embed implementation plan"
 git push origin codex/music-player
 ```
 
-- [ ] **Step 5: 更新草稿 PR #2 描述**
+- [x] **Step 5: 更新草稿 PR #2 描述**
 
 PR 描述必须将方案改为免费 Spotify Embed，删除 Cloudflare/Spotify secrets 部署步骤，列出最新测试结果，并保留既有文章视觉验证基线说明。
