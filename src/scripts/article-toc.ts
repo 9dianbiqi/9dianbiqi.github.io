@@ -37,7 +37,7 @@ const initArticleToc = () => {
 
   mediaQuery = window.matchMedia('(min-width: 981px)');
   mediaHandler = () => {
-    toc.open = Boolean(mediaQuery?.matches && toc.dataset.tocLayout === 'guide');
+    toc.open = Boolean(mediaQuery?.matches && toc.dataset.tocLayout !== 'note');
   };
   mediaHandler();
   mediaQuery.addEventListener('change', mediaHandler);

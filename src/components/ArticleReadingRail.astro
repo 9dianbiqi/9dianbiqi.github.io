@@ -1,0 +1,53 @@
+---
+import type { CollectionEntry } from 'astro:content';
+
+interface Props {
+  relatedPosts: CollectionEntry<'blog'>[];
+}
+
+const { relatedPosts } = Astro.props;
+---
+
+<aside class="reading-rail" data-reading-rail aria-label="阅读工具">
+  <section class="reading-progress-card" aria-labelledby="reading-progress-title">
+    <div class="reading-progress-heading">
+      <span id="reading-progress-title">阅读进度</span>
+      <strong data-reading-percent>0%</strong>
+    </div>
+    <progress
+      data-reading-progress
+      max="100"
+      value="0"
+      aria-label="文章阅读进度"
+      aria-valuenow="0"
+    >
+      0%
+    </progress>
+    <p class="reading-current" data-reading-current aria-live="polite">文章开头</p>
+  </section>
+
+  <nav class="related-posts" aria-label="相关文章">
+    <h2>相关文章</h2>
+    <ul>
+      {
+        relatedPosts.map((post) => (
+          <li>
+            <a href={`/blog/${post.id}/`}>
+              <span>{post.data.title}</span>
+              <small>{post.data.readingTime ?? '继续阅读'}</small>
+            </a>
+          </li>
+        ))
+      }
+    </ul>
+  </nav>
+
+  <nav class="reading-actions" aria-label="文章快捷操作">
+    <a href="#article-top">返回顶部</a>
+    <a href="/blog/">全部文章</a>
+  </nav>
+</aside>
+
+<script>
+  import '../scripts/article-reading-rail';
+</script>
