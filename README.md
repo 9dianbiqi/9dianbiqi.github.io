@@ -19,21 +19,19 @@ npm run build
 
 博客包含一个可定制的全站悬浮 Web Component 播放器：
 
-- Spotify：公开目录与外链；博主 OAuth 登录后启用 Web Playback SDK。
+- Spotify：使用官方公开歌单 Embed，无需 Premium、Client ID、Secret、OAuth 或 Worker。
 - 汽水音乐：读取站内配置并跳转官方分享链接，不使用非官方播放接口。
-- Astro 客户端导航期间保持播放器状态，完整刷新后等待用户手动播放。
+- Astro 客户端导航期间保持播放器实例和展开状态，不自动播放。
 
 本地自动化验证：
 
 ```bash
 npm run test:player
-npm run test:worker
-npm run typecheck:worker
 npm run test:e2e
 npm run verify:music-player
 ```
 
-Spotify、Cloudflare、汽水歌曲配置和部署顺序见 [`docs/music-player-deployment.md`](docs/music-player-deployment.md)。
+Spotify 歌单、汽水歌曲和免费站内播放限制见 [`docs/music-player-configuration.md`](docs/music-player-configuration.md)。Spotify iframe 内部样式、完整歌曲播放资格和地区限制由 Spotify 控制。
 
 ## 发布
 

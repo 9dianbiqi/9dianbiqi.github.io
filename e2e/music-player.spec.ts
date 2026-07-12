@@ -5,9 +5,18 @@ test('switches providers and persists the player through Astro navigation', asyn
   await expect(page.locator('music-player')).toBeVisible();
 
   await page.getByRole('button', { name: '展开播放器' }).click();
+  await expect(page.locator('music-player iframe[data-spotify-embed]')).toHaveAttribute(
+    'src',
+    /https:\/\/open\.spotify\.com\/embed\/playlist\//,
+  );
+  await expect(page.locator('music-player [data-action="login"]')).toHaveCount(0);
+
+  const spotifyTab = page.getByRole('tab', { name: '切换到 Spotify' });
   const qishuiTab = page.getByRole('tab', { name: '切换到汽水音乐' });
-  await qishuiTab.click();
+  await spotifyTab.focus();
+  await spotifyTab.press('ArrowRight');
   await expect(qishuiTab).toHaveAttribute('aria-selected', 'true');
+  await expect(qishuiTab).toBeFocused();
   await expect(page.getByText('尚未配置汽水音乐歌曲。')).toBeVisible();
 
   await page.locator('header a[href="/blog/"]').click();

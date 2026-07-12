@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import {
   QISHUI_CAPABILITIES,
   SPOTIFY_CAPABILITIES,
-  getPrimaryAction,
 } from './providers';
 import { createDefaultPlayerState, reducePlayerState, restorePlayerState } from './store';
 import { validateQishuiTracks } from './validation';
@@ -87,13 +86,23 @@ describe('player state', () => {
 });
 
 describe('provider capabilities', () => {
-  it('uses inline play only for an authenticated, available Spotify session', () => {
-    expect(getPrimaryAction(SPOTIFY_CAPABILITIES, true, false)).toBe('inline-play');
-    expect(getPrimaryAction(SPOTIFY_CAPABILITIES, false, false)).toBe('open-external');
-    expect(getPrimaryAction(SPOTIFY_CAPABILITIES, true, true)).toBe('open-external');
+  it('delegates Spotify playback controls to the official embed', () => {
+    expect(SPOTIFY_CAPABILITIES).toEqual({
+      inlinePlayback: true,
+      seek: false,
+      volume: false,
+      previousNext: false,
+      externalOpen: true,
+    });
   });
 
   it('always opens Qishui tracks externally', () => {
-    expect(getPrimaryAction(QISHUI_CAPABILITIES, true, false)).toBe('open-external');
+    expect(QISHUI_CAPABILITIES).toEqual({
+      inlinePlayback: false,
+      seek: false,
+      volume: false,
+      previousNext: false,
+      externalOpen: true,
+    });
   });
 });

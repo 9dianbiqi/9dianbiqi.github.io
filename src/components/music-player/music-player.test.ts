@@ -4,7 +4,10 @@ import type { MusicPlayerElement } from './music-player';
 import './music-player';
 
 const config = {
-  workerBaseUrl: '',
+  spotify: {
+    playlistUrl: 'https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M',
+    title: 'Spotify 精选歌单',
+  },
   defaultProvider: 'qishui',
   qishuiTracks: [
     {
@@ -68,16 +71,10 @@ describe('music-player element', () => {
   });
 
   it('handles an expand click exactly once after rendering', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockResolvedValue(
-        Response.json({ generatedAt: null, playlistUrl: '', tracks: [] }),
-      ),
-    );
     const element = document.createElement('music-player') as MusicPlayerElement;
     element.setAttribute(
       'data-config',
-      JSON.stringify({ ...config, defaultProvider: 'spotify', workerBaseUrl: 'https://worker.example' }),
+      JSON.stringify({ ...config, defaultProvider: 'spotify' }),
     );
     document.body.append(element);
     await element.ready;
@@ -88,64 +85,40 @@ describe('music-player element', () => {
     expect(element.shadowRoot!.querySelector('.shell')?.classList.contains('expanded')).toBe(true);
   });
 
-  it('upgrades an authenticated Spotify catalog to inline playback controls', async () => {
-    localStorage.setItem('music-player.spotify-session.v1', 'opaque-session');
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockResolvedValue(
-        new Response(
-          JSON.stringify({
-            generatedAt: '2026-07-12T00:00:00Z',
-            playlistUrl: 'https://open.spotify.com/playlist/demo',
-            tracks: [
-              {
-                id: 'spotify-demo',
-                title: 'Spotify demo',
-                artist: 'Demo artist',
-                coverUrl: 'https://i.scdn.co/image/demo',
-                externalUrl: 'https://open.spotify.com/track/spotify-demo',
-                spotifyUri: 'spotify:track:spotify-demo',
-              },
-            ],
-          }),
-          { status: 200, headers: { 'content-type': 'application/json' } },
-        ),
-      ),
-    );
+  it('renders a safe official Spotify playlist embed without OAuth controls', async () => {
     const element = document.createElement('music-player') as MusicPlayerElement;
     element.setAttribute(
       'data-config',
-      JSON.stringify({ ...config, defaultProvider: 'spotify', workerBaseUrl: 'https://worker.example' }),
+      JSON.stringify({ ...config, defaultProvider: 'spotify' }),
     );
     document.body.append(element);
     await element.ready;
 
-    expect(element.shadowRoot!.querySelector('[data-action="primary"]')?.getAttribute('aria-label')).toBe(
-      '播放：Spotify demo',
+    const root = element.shadowRoot!;
+    const iframe = root.querySelector<HTMLIFrameElement>('iframe[data-spotify-embed]');
+    expect(iframe?.src).toBe(
+      'https://open.spotify.com/embed/playlist/37i9dQZF1DXcBWIGoYBM5M',
     );
-    expect(element.shadowRoot!.querySelector('[data-action="login"]')).toBeNull();
+    expect(iframe?.title).toBe('Spotify 精选歌单');
+    expect(root.querySelector('[data-action="login"]')).toBeNull();
+    expect(root.querySelector('[data-action="primary"]')).toBeNull();
+    expect(root.querySelector('[data-action="volume"]')).toBeNull();
   });
 
-  it('keeps the player usable when the first post-login catalog refresh fails', async () => {
-    history.replaceState({}, '', '/?music_code=single-use-code');
-    vi.stubGlobal(
-      'fetch',
-      vi.fn()
-        .mockResolvedValueOnce(
-          Response.json({ sessionToken: 'opaque-session', expiresAt: '2026-07-19T00:00:00Z' }),
-        )
-        .mockResolvedValueOnce(Response.json({ error: 'refresh_failed' }, { status: 502 }))
-        .mockResolvedValueOnce(Response.json({ generatedAt: null, playlistUrl: '', tracks: [] })),
-    );
+  it('rejects a non-Spotify iframe URL without rendering it', async () => {
     const element = document.createElement('music-player') as MusicPlayerElement;
     element.setAttribute(
       'data-config',
-      JSON.stringify({ ...config, defaultProvider: 'spotify', workerBaseUrl: 'https://worker.example' }),
+      JSON.stringify({
+        ...config,
+        defaultProvider: 'spotify',
+        spotify: { playlistUrl: 'https://example.com/playlist/unsafe' },
+      }),
     );
     document.body.append(element);
     await element.ready;
 
-    expect(element.shadowRoot!.querySelector('[aria-label="音乐播放器"]')).not.toBeNull();
-    expect(location.search).toBe('');
+    expect(element.shadowRoot!.querySelector('iframe')).toBeNull();
+    expect(element.shadowRoot!.textContent).toContain('Spotify playlist URL');
   });
 });

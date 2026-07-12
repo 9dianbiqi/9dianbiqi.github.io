@@ -1,5 +1,4 @@
-import { QISHUI_CAPABILITIES, SPOTIFY_CAPABILITIES, getPrimaryAction } from './providers';
-import { SpotifyProvider } from './spotify-provider';
+import { createSpotifyEmbedUrl } from './spotify-embed';
 import { createDefaultPlayerState, reducePlayerState, restorePlayerState } from './store';
 import type { MusicPlayerConfig, MusicTrack, PlayerState, ProviderId } from './types';
 import { validateQishuiTracks } from './validation';
@@ -25,9 +24,8 @@ const styles = `
     font-family: inherit;
   }
   * { box-sizing: border-box; }
-  button, input { font: inherit; }
-  button { cursor: pointer; }
-  button:focus-visible, input:focus-visible {
+  button { cursor: pointer; font: inherit; }
+  button:focus-visible {
     outline: 3px solid color-mix(in srgb, var(--music-player-highlight) 42%, transparent);
     outline-offset: 2px;
   }
@@ -52,13 +50,33 @@ const styles = `
     font-weight: 720;
   }
   .tab[aria-selected='true'] { background: var(--music-player-accent); color: #fffdf8; }
-  .now { display: grid; grid-template-columns: 54px minmax(0, 1fr) 44px; gap: 11px; align-items: center; padding: 12px; }
-  .cover { width: 54px; height: 54px; border-radius: 9px; object-fit: cover; background: var(--music-player-surface); }
+  .now {
+    display: grid;
+    grid-template-columns: 54px minmax(0, 1fr) 44px;
+    gap: 11px;
+    align-items: center;
+    padding: 12px;
+  }
+  .cover, .provider-mark {
+    width: 54px;
+    height: 54px;
+    border-radius: 9px;
+    background: var(--music-player-surface);
+  }
+  .cover { object-fit: cover; }
+  .provider-mark {
+    display: grid;
+    place-items: center;
+    color: #fff;
+    background: #1ed760;
+    font-size: 1.5rem;
+    font-weight: 900;
+  }
   .meta { min-width: 0; }
   .title, .artist { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .title { font-weight: 800; }
   .artist { color: var(--music-player-muted); font-size: .82rem; }
-  .icon-button, .primary {
+  .icon-button {
     min-width: 44px;
     min-height: 44px;
     border: 1px solid var(--music-player-border);
@@ -66,34 +84,69 @@ const styles = `
     background: var(--music-player-bg);
     color: var(--music-player-accent);
   }
-  .primary { min-width: 52px; background: var(--music-player-accent); color: #fffdf8; border-color: var(--music-player-accent); }
-  .controls { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 0 12px 12px; }
-  .external-label { min-height: 44px; width: 100%; border: 0; border-radius: 9px; padding: 9px 12px; background: var(--music-player-accent); color: #fffdf8; font-weight: 760; }
-  .progress { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; padding: 0 12px 12px; color: var(--music-player-muted); font-size: .76rem; }
-  .progress input, .volume input { accent-color: var(--music-player-highlight); width: 100%; }
-  .volume { display: grid; grid-template-columns: auto 1fr; gap: 8px; align-items: center; padding: 0 12px 12px; color: var(--music-player-muted); }
-  .queue { max-height: 228px; overflow: auto; border-top: 1px solid var(--music-player-border); padding: 7px; }
-  .track { display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 7px; width: 100%; min-height: 44px; align-items: center; border: 0; border-radius: 8px; background: transparent; color: inherit; text-align: left; }
+  .controls { display: flex; justify-content: center; padding: 0 12px 12px; }
+  .external-label {
+    min-height: 44px;
+    width: 100%;
+    border: 0;
+    border-radius: 9px;
+    padding: 9px 12px;
+    background: var(--music-player-accent);
+    color: #fffdf8;
+    font-weight: 760;
+  }
+  .spotify-embed { padding: 12px; }
+  .spotify-embed iframe {
+    display: block;
+    width: 100%;
+    height: 352px;
+    border: 0;
+    border-radius: 12px;
+    background: var(--music-player-surface);
+  }
+  .queue {
+    max-height: 228px;
+    overflow: auto;
+    border-top: 1px solid var(--music-player-border);
+    padding: 7px;
+  }
+  .track {
+    display: grid;
+    grid-template-columns: 28px minmax(0, 1fr);
+    gap: 7px;
+    width: 100%;
+    min-height: 44px;
+    align-items: center;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: inherit;
+    text-align: left;
+  }
   .track[aria-current='true'] { background: var(--music-player-surface); color: var(--music-player-accent); }
   .track-number { color: var(--music-player-muted); font-size: .76rem; text-align: center; }
   .empty, .error { margin: 0; padding: 14px; color: var(--music-player-muted); font-size: .86rem; }
   .error { color: #8f3b2c; }
-  .login { margin: 0 12px 12px; width: calc(100% - 24px); min-height: 44px; border: 1px solid var(--music-player-border); border-radius: 9px; background: var(--music-player-bg); color: var(--music-player-accent); font-weight: 720; }
   @media (max-width: 640px) {
     :host { left: 0; right: 0; bottom: 0; }
-    .shell { width: 100%; border-radius: 18px 18px 0 0; border-inline: 0; border-bottom: 0; }
-    .shell.expanded { max-height: min(78vh, 620px); }
+    .shell {
+      width: 100%;
+      border-radius: 18px 18px 0 0;
+      border-inline: 0;
+      border-bottom: 0;
+    }
+    .shell.expanded { max-height: min(82vh, 680px); overflow-y: auto; }
   }
-  @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; } }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { transition: none !important; }
+  }
 `;
 
 export class MusicPlayerElement extends HTMLElement {
   config!: MusicPlayerConfig;
   state: PlayerState = createDefaultPlayerState();
   tracks: Record<ProviderId, MusicTrack[]> = { spotify: [], qishui: [] };
-  spotifyAuthenticated = false;
-  spotifyUnavailable = false;
-  private spotifyProvider?: SpotifyProvider;
+  private spotifyEmbedUrl = '';
   private initialized = false;
   private clickEventsBound = false;
   private resolveReady!: () => void;
@@ -107,232 +160,140 @@ export class MusicPlayerElement extends HTMLElement {
   connectedCallback() {
     if (this.initialized) return;
     this.initialized = true;
-    void this.initialize();
+    this.initialize();
   }
 
-  private async initialize() {
+  private initialize() {
     this.attachShadow({ mode: 'open' });
     try {
       this.config = JSON.parse(this.dataset.config || '{}') as MusicPlayerConfig;
       this.config.qishuiTracks ??= [];
-      this.config.workerBaseUrl = (this.config.workerBaseUrl || '').replace(/\/$/, '');
+      this.spotifyEmbedUrl = createSpotifyEmbedUrl(this.config.spotify?.playlistUrl ?? '');
       this.tracks.qishui = validateQishuiTracks(this.config.qishuiTracks);
-      if (this.config.workerBaseUrl) {
-        this.spotifyProvider = new SpotifyProvider({
-          workerBaseUrl: this.config.workerBaseUrl,
-          onState: (spotifyState) => {
-            this.state = {
-              ...this.state,
-              playback: spotifyState.paused ? 'paused' : 'playing',
-              progressMs: spotifyState.position,
-              ...(spotifyState.track ? { currentTrackId: spotifyState.track.id } : {}),
-              errorMessage: undefined,
-            };
-            this.persist();
-            this.renderAndBind();
-          },
-          onError: (message) => this.degradeSpotify(message),
-        });
-        await this.exchangeCallbackCode();
-        this.spotifyAuthenticated = this.spotifyProvider.authenticated;
-      }
+
       const saved = localStorage.getItem(STATE_KEY);
       this.state = saved ? restorePlayerState(saved) : createDefaultPlayerState();
-      if (!saved && this.config.defaultProvider) {
-        this.state.providerId = this.config.defaultProvider;
+      if (!saved && this.config.defaultProvider) this.state.providerId = this.config.defaultProvider;
+      if (this.state.providerId === 'qishui') {
+        const selectedStillExists = this.tracks.qishui.some(
+          (track) => track.id === this.state.currentTrackId,
+        );
+        if (!selectedStillExists) this.state.currentTrackId = this.tracks.qishui[0]?.id;
       }
-      const activeTracks = this.tracks[this.state.providerId];
-      if (!this.state.currentTrackId && activeTracks[0]) this.state.currentTrackId = activeTracks[0].id;
+
       this.render();
       this.bindEvents();
-      if (this.state.providerId === 'spotify') await this.loadSpotifyCatalog();
     } catch (error) {
-      this.shadowRoot!.innerHTML = `<style>${styles}</style><div class="shell"><p class="error">${this.escape(error instanceof Error ? error.message : '播放器配置无效')}</p></div>`;
+      this.shadowRoot!.innerHTML = `
+        <style>${styles}</style>
+        <div class="shell">
+          <p class="error">${this.escape(error instanceof Error ? error.message : '播放器配置无效')}</p>
+        </div>`;
     } finally {
       this.resolveReady();
     }
   }
 
-  private currentTracks() {
-    return this.tracks[this.state.providerId];
-  }
-
-  private currentTrack() {
-    return this.currentTracks().find((track) => track.id === this.state.currentTrackId) ?? this.currentTracks()[0];
-  }
-
-  private async loadSpotifyCatalog() {
-    if (!this.config.workerBaseUrl) {
-      this.spotifyUnavailable = true;
-      this.renderAndBind();
-      return;
-    }
-    try {
-      const catalog = await this.spotifyProvider!.loadCatalog();
-      this.tracks.spotify = catalog.tracks;
-      this.spotifyUnavailable = false;
-      if (!this.state.currentTrackId && this.tracks.spotify[0]) {
-        this.state.currentTrackId = this.tracks.spotify[0].id;
-      }
-    } catch {
-      this.spotifyUnavailable = true;
-    }
-    this.renderAndBind();
+  private currentQishuiTrack() {
+    return this.tracks.qishui.find((track) => track.id === this.state.currentTrackId)
+      ?? this.tracks.qishui[0];
   }
 
   private bindEvents() {
-    if (!this.clickEventsBound) this.shadowRoot!.addEventListener('click', (event) => {
+    if (this.clickEventsBound) return;
+    this.shadowRoot!.addEventListener('click', (event) => {
       const button = (event.target as Element).closest<HTMLButtonElement>('button');
       if (!button) return;
+
       const provider = button.dataset.provider as ProviderId | undefined;
       if (provider) {
         this.switchProvider(provider);
         return;
       }
+
       const trackId = button.dataset.trackId;
       if (trackId) {
         this.state = reducePlayerState(this.state, { type: 'select-track', trackId });
-        this.persist();
-        this.renderAndBind();
+        this.persistAndRender();
         return;
       }
-      switch (button.dataset.action) {
-        case 'toggle':
-          this.state = reducePlayerState(this.state, { type: 'set-expanded', expanded: !this.state.expanded });
-          this.persist();
-          this.renderAndBind();
-          break;
-        case 'primary':
-          void this.activatePrimaryAction();
-          break;
-        case 'previous':
-          void this.runSpotifyControl(() => this.spotifyProvider?.previous());
-          break;
-        case 'next':
-          void this.runSpotifyControl(() => this.spotifyProvider?.next());
-          break;
-        case 'login':
-          this.startSpotifyLogin();
-          break;
+
+      if (button.dataset.action === 'toggle') {
+        this.state = reducePlayerState(this.state, {
+          type: 'set-expanded',
+          expanded: !this.state.expanded,
+        });
+        this.persistAndRender();
+      }
+
+      if (button.dataset.action === 'primary') {
+        const track = this.currentQishuiTrack();
+        if (track) window.open(track.externalUrl, '_blank', 'noopener,noreferrer');
       }
     });
-    this.clickEventsBound = true;
-    this.shadowRoot!.querySelector<HTMLInputElement>('[data-action="volume"]')?.addEventListener('input', (event) => {
-      this.state = reducePlayerState(this.state, {
-        type: 'set-volume',
-        volume: Number((event.target as HTMLInputElement).value),
-      });
-      this.persist();
-      if (this.spotifyAuthenticated) void this.spotifyProvider?.setVolume(this.state.volume);
+    this.shadowRoot!.addEventListener('keydown', (event) => {
+      const keyboardEvent = event as KeyboardEvent;
+      const tab = (event.target as Element).closest<HTMLButtonElement>('[role="tab"]');
+      if (!tab) return;
+
+      const providers: ProviderId[] = ['spotify', 'qishui'];
+      const currentIndex = providers.indexOf(tab.dataset.provider as ProviderId);
+      const nextIndex = keyboardEvent.key === 'ArrowRight'
+        ? (currentIndex + 1) % providers.length
+        : keyboardEvent.key === 'ArrowLeft'
+          ? (currentIndex - 1 + providers.length) % providers.length
+          : keyboardEvent.key === 'Home'
+            ? 0
+            : keyboardEvent.key === 'End'
+              ? providers.length - 1
+              : -1;
+      if (nextIndex < 0) return;
+
+      keyboardEvent.preventDefault();
+      const nextProvider = providers[nextIndex];
+      this.switchProvider(nextProvider);
+      this.shadowRoot!
+        .querySelector<HTMLButtonElement>(`[data-provider="${nextProvider}"]`)
+        ?.focus();
     });
+    this.clickEventsBound = true;
   }
 
   private switchProvider(providerId: ProviderId) {
     if (providerId === this.state.providerId) return;
     this.state = reducePlayerState(this.state, { type: 'switch-provider', providerId });
-    this.state.currentTrackId = this.tracks[providerId][0]?.id;
-    this.persist();
-    this.renderAndBind();
-    if (providerId === 'spotify' && this.tracks.spotify.length === 0) void this.loadSpotifyCatalog();
+    if (providerId === 'qishui') this.state.currentTrackId = this.tracks.qishui[0]?.id;
+    this.persistAndRender();
   }
 
-  private async activatePrimaryAction() {
-    const track = this.currentTrack();
-    if (!track) return;
-    const capabilities = this.state.providerId === 'spotify' ? SPOTIFY_CAPABILITIES : QISHUI_CAPABILITIES;
-    const action = getPrimaryAction(capabilities, this.spotifyAuthenticated, this.spotifyUnavailable);
-    if (action === 'open-external') {
-      window.open(track.externalUrl, '_blank', 'noopener,noreferrer');
-      return;
-    }
-    try {
-      if (this.state.playback === 'playing') {
-        await this.spotifyProvider?.pause();
-        this.state = reducePlayerState(this.state, { type: 'set-playback', playback: 'paused' });
-      } else {
-        await this.spotifyProvider?.play(track);
-        this.state = reducePlayerState(this.state, { type: 'set-playback', playback: 'playing' });
-      }
-      this.persist();
-      this.renderAndBind();
-    } catch (error) {
-      this.degradeSpotify(error instanceof Error ? error.message : 'Spotify 暂不可用');
-      window.open(track.externalUrl, '_blank', 'noopener,noreferrer');
-    }
-  }
-
-  private startSpotifyLogin() {
-    if (!this.config.workerBaseUrl) return;
-    const returnTo = `${location.origin}${location.pathname}`;
-    location.assign(`${this.config.workerBaseUrl}/auth/spotify/start?returnTo=${encodeURIComponent(returnTo)}`);
-  }
-
-  private async exchangeCallbackCode() {
-    const url = new URL(location.href);
-    const code = url.searchParams.get('music_code');
-    if (!code || !this.spotifyProvider) return;
-    try {
-      await this.spotifyProvider.exchangeSessionCode(code);
-      try {
-        const catalog = await this.spotifyProvider.refreshCatalog();
-        this.tracks.spotify = catalog.tracks;
-      } catch {
-        this.spotifyUnavailable = true;
-      }
-    } finally {
-      url.searchParams.delete('music_code');
-      history.replaceState(history.state, '', `${url.pathname}${url.search}${url.hash}`);
-    }
-  }
-
-  private async runSpotifyControl(control: () => Promise<unknown> | undefined) {
-    try {
-      await control();
-    } catch (error) {
-      this.degradeSpotify(error instanceof Error ? error.message : 'Spotify 暂不可用');
-    }
-  }
-
-  private degradeSpotify(message: string) {
-    this.spotifyUnavailable = true;
-    this.spotifyAuthenticated = this.spotifyProvider?.authenticated ?? false;
-    this.state = reducePlayerState(this.state, { type: 'set-error', message });
-    this.persist();
-    this.renderAndBind();
-  }
-
-  private persist() {
+  private persistAndRender() {
     localStorage.setItem(STATE_KEY, JSON.stringify(this.state));
-  }
-
-  private renderAndBind() {
     this.render();
-    this.bindEvents();
   }
 
   private escape(value: string) {
     return value.replace(/[&<>"']/g, (character) => ({
-      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#39;',
     })[character]!);
   }
 
   private render() {
-    const track = this.currentTrack();
     const isSpotify = this.state.providerId === 'spotify';
-    const action = getPrimaryAction(
-      isSpotify ? SPOTIFY_CAPABILITIES : QISHUI_CAPABILITIES,
-      this.spotifyAuthenticated,
-      this.spotifyUnavailable,
-    );
-    const primaryLabel = track
-      ? action === 'inline-play'
-        ? `${this.state.playback === 'playing' ? '暂停' : '播放'}：${track.title}`
-        : `在${isSpotify ? ' Spotify' : '汽水音乐'}打开：${track.title}`
-      : '暂无歌曲';
-    const primaryContent = action === 'inline-play'
-      ? `<slot name="icon-${this.state.playback === 'playing' ? 'pause' : 'play'}">${this.state.playback === 'playing' ? 'Ⅱ' : '▶'}</slot>`
-      : isSpotify ? '打开 Spotify ↗' : '在汽水音乐打开 ↗';
-    const tracks = this.currentTracks();
+    const track = this.currentQishuiTrack();
+    const spotifyTitle = this.config.spotify.title?.trim() || 'Spotify 歌单';
+    const compactTitle = isSpotify ? spotifyTitle : track?.title ?? '暂无歌曲';
+    const compactArtist = isSpotify
+      ? 'Spotify 官方播放'
+      : track?.artist ?? '请在配置中添加汽水分享链接';
+    const compactArtwork = isSpotify
+      ? '<div class="provider-mark" aria-hidden="true">♫</div>'
+      : track
+        ? `<img class="cover" src="${this.escape(track.coverUrl)}" alt="" loading="lazy" />`
+        : '<div class="cover"></div>';
 
     this.shadowRoot!.innerHTML = `
       <style>${styles}</style>
@@ -340,27 +301,77 @@ export class MusicPlayerElement extends HTMLElement {
         <div class="details">
           <div class="tabs" role="tablist" aria-label="音乐供应商" part="provider-switch">
             ${(['spotify', 'qishui'] as ProviderId[]).map((provider) => `
-              <button class="tab" type="button" role="tab" data-provider="${provider}" aria-selected="${this.state.providerId === provider}" aria-label="切换到${provider === 'spotify' ? ' Spotify' : '汽水音乐'}">
+              <button
+                class="tab"
+                type="button"
+                role="tab"
+                data-provider="${provider}"
+                aria-selected="${this.state.providerId === provider}"
+                aria-label="切换到${provider === 'spotify' ? ' Spotify' : '汽水音乐'}"
+              >
                 ${provider === 'spotify' ? 'Spotify' : '汽水音乐 ↗'}
               </button>`).join('')}
           </div>
         </div>
         <div class="now">
-          ${track ? `<img class="cover" src="${this.escape(track.coverUrl)}" alt="" loading="lazy" />` : '<div class="cover"></div>'}
-          <div class="meta"><div class="title">${this.escape(track?.title ?? '暂无歌曲')}</div><div class="artist">${this.escape(track?.artist ?? (isSpotify ? '请配置 Worker 或刷新目录' : '请在配置中添加汽水分享链接'))}</div></div>
-          <button class="icon-button" type="button" data-action="toggle" aria-label="${this.state.expanded ? '收起播放器' : '展开播放器'}" aria-expanded="${this.state.expanded}"><slot name="icon-expand">${this.state.expanded ? '⌄' : '⌃'}</slot></button>
+          ${compactArtwork}
+          <div class="meta">
+            <div class="title">${this.escape(compactTitle)}</div>
+            <div class="artist">${this.escape(compactArtist)}</div>
+          </div>
+          <button
+            class="icon-button"
+            type="button"
+            data-action="toggle"
+            aria-label="${this.state.expanded ? '收起播放器' : '展开播放器'}"
+            aria-expanded="${this.state.expanded}"
+          >
+            <slot name="icon-expand">${this.state.expanded ? '⌄' : '⌃'}</slot>
+          </button>
         </div>
         <div class="details">
-          ${action === 'inline-play' ? `<div class="controls" part="controls"><button class="icon-button" type="button" data-action="previous" aria-label="上一首"><slot name="icon-previous">‹</slot></button><button class="primary" type="button" data-action="primary" aria-label="${this.escape(primaryLabel)}">${primaryContent}</button><button class="icon-button" type="button" data-action="next" aria-label="下一首"><slot name="icon-next">›</slot></button></div>` : `<div class="controls" part="controls"><button class="external-label" type="button" data-action="primary" aria-label="${this.escape(primaryLabel)}">${primaryContent}</button></div>`}
-          ${isSpotify && !this.spotifyAuthenticated ? `<button class="login" type="button" data-action="login" ${this.config.workerBaseUrl ? '' : 'disabled'}>博主登录 Spotify</button>` : ''}
-          ${this.state.errorMessage ? `<p class="error" role="status">${this.escape(this.state.errorMessage)}</p>` : ''}
-          <div class="volume"><span aria-hidden="true">音量</span><input type="range" min="0" max="1" step="0.05" value="${this.state.volume}" data-action="volume" aria-label="音量" ${isSpotify && action === 'inline-play' ? '' : 'disabled'} /></div>
-          <div class="queue" part="queue" aria-label="歌曲列表">
-            ${tracks.length ? tracks.map((item, index) => `<button class="track" part="track" type="button" data-track-id="${this.escape(item.id)}" aria-current="${item.id === track?.id}"><span class="track-number">${String(index + 1).padStart(2, '0')}</span><span><span class="title">${this.escape(item.title)}</span><span class="artist">${this.escape(item.artist)}</span></span></button>`).join('') : `<p class="empty">${isSpotify ? 'Spotify 目录暂不可用，登录或部署 Worker 后重试。' : '尚未配置汽水音乐歌曲。'}</p>`}
-          </div>
+          ${isSpotify ? `
+            <div class="spotify-embed" part="embed">
+              <iframe
+                data-spotify-embed
+                src="${this.escape(this.spotifyEmbedUrl)}"
+                title="${this.escape(spotifyTitle)}"
+                loading="lazy"
+                allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+              ></iframe>
+            </div>` : `
+            ${track ? `
+              <div class="controls" part="controls">
+                <button
+                  class="external-label"
+                  type="button"
+                  data-action="primary"
+                  aria-label="在汽水音乐打开：${this.escape(track.title)}"
+                >
+                  在汽水音乐打开 ↗
+                </button>
+              </div>` : ''}
+            <div class="queue" part="queue" aria-label="歌曲列表">
+              ${this.tracks.qishui.length ? this.tracks.qishui.map((item, index) => `
+                <button
+                  class="track"
+                  part="track"
+                  type="button"
+                  data-track-id="${this.escape(item.id)}"
+                  aria-current="${item.id === track?.id}"
+                >
+                  <span class="track-number">${String(index + 1).padStart(2, '0')}</span>
+                  <span>
+                    <span class="title">${this.escape(item.title)}</span>
+                    <span class="artist">${this.escape(item.artist)}</span>
+                  </span>
+                </button>`).join('') : '<p class="empty">尚未配置汽水音乐歌曲。</p>'}
+            </div>`}
         </div>
       </section>`;
   }
 }
 
-if (!customElements.get('music-player')) customElements.define('music-player', MusicPlayerElement);
+if (!customElements.get('music-player')) {
+  customElements.define('music-player', MusicPlayerElement);
+}

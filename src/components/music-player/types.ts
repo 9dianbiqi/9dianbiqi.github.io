@@ -8,7 +8,6 @@ export interface MusicTrack {
   coverUrl: string;
   externalUrl: string;
   durationMs?: number;
-  spotifyUri?: string;
 }
 
 export interface ProviderCapabilities {
@@ -21,10 +20,9 @@ export interface ProviderCapabilities {
 
 export interface QishuiTrackConfig extends Omit<MusicTrack, 'provider'> {}
 
-export interface SpotifyCatalog {
-  generatedAt: string | null;
+export interface SpotifyEmbedConfig {
   playlistUrl: string;
-  tracks: MusicTrack[];
+  title?: string;
 }
 
 export type PlaybackStatus = 'idle' | 'loading' | 'playing' | 'paused' | 'error';
@@ -40,12 +38,7 @@ export interface PlayerState {
 }
 
 export interface MusicPlayerConfig {
-  workerBaseUrl: string;
+  spotify: SpotifyEmbedConfig;
   qishuiTracks: QishuiTrackConfig[];
   defaultProvider?: ProviderId;
-  controls?: {
-    previous?: boolean;
-    next?: boolean;
-    volume?: boolean;
-  };
 }

@@ -19,10 +19,8 @@
     "verify:object-flow": "node scripts/verify-object-storage-flow.mjs",
     "verify:post-nav": "node scripts/verify-post-navigation.mjs",
     "verify:music-player": "node scripts/verify-music-player.mjs",
-    "test": "npm run test:player && npm run test:worker",
+    "test": "npm run test:player",
     "test:player": "vitest run src/components/music-player",
-    "test:worker": "vitest run --config worker/vitest.config.ts",
-    "typecheck:worker": "tsc -p worker/tsconfig.json",
     "test:e2e": "playwright test",
     "preview": "astro preview",
     "astro": "astro"
@@ -34,12 +32,8 @@
     "typescript": "^5.9.2"
   },
   "devDependencies": {
-    "@cloudflare/vitest-pool-workers": "^0.18.4",
-    "@cloudflare/workers-types": "^5.20260711.1",
     "@playwright/test": "^1.61.1",
     "jsdom": "^29.1.1",
-    "undici": "^7.28.0",
-    "vitest": "^4.1.10",
-    "wrangler": "^4.110.0"
+    "vitest": "^4.1.10"
   }
 }
