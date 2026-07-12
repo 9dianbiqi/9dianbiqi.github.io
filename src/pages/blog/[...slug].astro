@@ -2,7 +2,9 @@
 import { getCollection, render } from 'astro:content';
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import ArticleToc from '../../components/ArticleToc.astro';
+import ArticleReadingRail from '../../components/ArticleReadingRail.astro';
 import { getPostNavigation } from '../../lib/postNavigation.mjs';
+import { getRelatedPosts } from '../../lib/relatedPosts.mjs';
 import { buildToc } from '../../lib/toc.mjs';
 
 export async function getStaticPaths() {
@@ -12,11 +14,12 @@ export async function getStaticPaths() {
     props: {
       post,
       navigation: getPostNavigation(posts, post.id),
+      relatedPosts: getRelatedPosts(posts, post, 3),
     },
   }));
 }
 
-const { post, navigation } = Astro.props;
+const { post, navigation, relatedPosts } = Astro.props;
 const { Content, headings } = await render(post);
 const title = `${post.data.title} | 9dianbiqi`;
 const formatDate = (date: Date) =>
@@ -29,7 +32,7 @@ const toc = buildToc(headings);
 ---
 
 <BaseLayout title={title} description={post.data.description} image={post.data.heroImage}>
-  <article class={`article-shell post-template-${post.data.articleLayout}`}>
+  <article id="article-top" class={`article-shell post-template-${post.data.articleLayout}`}>
     <header class="article-header">
       <p class="eyebrow">Blog</p>
       <h1>{post.data.title}</h1>
@@ -86,6 +89,7 @@ const toc = buildToc(headings);
           )
         }
       </div>
+      <ArticleReadingRail relatedPosts={relatedPosts} />
     </div>
   </article>
 </BaseLayout>

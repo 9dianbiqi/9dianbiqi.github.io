@@ -19,8 +19,9 @@
     "verify:object-flow": "node scripts/verify-object-storage-flow.mjs",
     "verify:post-nav": "node scripts/verify-post-navigation.mjs",
     "verify:music-player": "node scripts/verify-music-player.mjs",
-    "test": "npm run test:player",
+    "test": "npm run test:player && npm run test:content",
     "test:player": "vitest run src/components/music-player",
+    "test:content": "vitest run src/lib/relatedPosts.test.ts src/lib/articleReading.test.ts",
     "test:e2e": "playwright test",
     "preview": "astro preview",
     "astro": "astro"

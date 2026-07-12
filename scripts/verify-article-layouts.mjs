@@ -16,11 +16,37 @@ assert.match(
   /post-template-\$\{post\.data\.articleLayout\}/,
   'Article page should apply a post-template-${post.data.articleLayout} class',
 );
+assert.match(
+  articlePage,
+  /import ArticleReadingRail/,
+  'Article page should import the reading rail',
+);
+assert.match(
+  articlePage,
+  /<ArticleReadingRail relatedPosts={relatedPosts}/,
+  'Article page should render related posts in the reading rail',
+);
 
 const styles = read('src/styles/global.css');
 for (const selector of ['.post-template-essay', '.post-template-guide', '.post-template-note']) {
   assert.ok(styles.includes(selector), `global.css should define ${selector}`);
 }
+assert.match(
+  styles,
+  /grid-template-columns:\s*220px minmax\(0,\s*720px\) 220px/,
+  'Wide article layout should use the three-column reading workspace',
+);
+
+const readingRail = read('src/components/ArticleReadingRail.astro');
+assert.match(readingRail, /data-reading-progress/, 'Reading rail should expose progress');
+assert.match(readingRail, /相关文章/, 'Reading rail should include related articles');
+
+const tocScript = read('src/scripts/article-toc.ts');
+assert.match(
+  tocScript,
+  /toc\.dataset\.tocLayout !== 'note'/,
+  'Essay and guide tables of contents should open on desktop',
+);
 for (const selector of ['.prose blockquote', '.prose table', '.toc a']) {
   assert.ok(styles.includes(selector), `global.css should style ${selector}`);
 }
