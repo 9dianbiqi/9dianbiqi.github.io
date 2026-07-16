@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { existsSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
 
 const root = process.cwd();
@@ -11,6 +11,7 @@ const configPath = fromRoot('src/site.config.ts');
 const layoutPath = fromRoot('src/layouts/BaseLayout.astro');
 const heroPath = fromRoot('src/components/HomeHero.astro');
 const articlePath = fromRoot('src/content/blog/astro-home-video-background.md');
+const blogContentPath = fromRoot('src/content/blog');
 
 assert.ok(existsSync(videoPath), 'Missing homepage video: public/media/home/hero-video.mp4');
 assert.ok(statSync(videoPath).size > 1_000_000, 'Homepage video should be a real media file');
@@ -43,6 +44,21 @@ for (const snippet of [
   'muted',
 ]) {
   assert.ok(article.includes(snippet), `Implementation article should mention ${snippet}`);
+}
+
+const allowedHomeMediaArticle = path.normalize(articlePath);
+for (const entry of readdirSync(blogContentPath, { withFileTypes: true })) {
+  if (!entry.isFile() || !/\.(md|mdx)$/.test(entry.name)) continue;
+
+  const filePath = path.join(blogContentPath, entry.name);
+  const content = readFileSync(filePath, 'utf8');
+  if (!content.includes('/media/home/')) continue;
+
+  assert.equal(
+    path.normalize(filePath),
+    allowedHomeMediaArticle,
+    `${entry.name} should not reuse homepage video assets as article media`,
+  );
 }
 
 console.log('Homepage video checks passed.');

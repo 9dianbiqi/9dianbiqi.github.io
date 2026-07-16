@@ -2,7 +2,6 @@
 title: "HelloAgents DeepResearch 严格技术面试 QA"
 description: "围绕 helloagents-deepresearch 项目的技术选型、核心架构、Agent 编排、SSE 流式通信、Harness 治理层和生产化风险整理的一份深挖式面试问答。"
 pubDate: 2026-07-12
-heroImage: "/media/home/hero-poster.jpg"
 heroAlt: "HelloAgents DeepResearch 技术面试问答"
 tags: ["Agent", "FastAPI", "Vue", "SSE", "架构设计", "技术面试"]
 readingTime: "约 10 分钟"
