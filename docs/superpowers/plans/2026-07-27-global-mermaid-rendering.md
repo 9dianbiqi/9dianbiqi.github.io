@@ -235,11 +235,17 @@ expect(api.initialize).toHaveBeenCalledWith(expect.objectContaining({
   startOnLoad: false,
   securityLevel: 'strict',
 }));
+
+const firstRun = initialize(documentWithOneDiagram);
+const concurrentRun = initialize(documentWithOneDiagram);
+await Promise.all([firstRun, concurrentRun]);
+expect(renderCalls).toBe(1);
 ```
 
 The loader double replaces only the external Mermaid package. DOM transformation remains real.
 
-Production mutations caught: eager import, repeated imports, weak security level, or Mermaid auto-start.
+Production mutations caught: eager import, repeated imports, duplicate rendering from overlapping lifecycle events,
+weak security level, or Mermaid auto-start.
 
 - [ ] **Step 3: Run the focused test and verify RED**
 
@@ -260,9 +266,11 @@ const defaultLoader: MermaidModuleLoader = () => import('mermaid');
 
 export function createMermaidInitializer(loadModule = defaultLoader) {
   let apiPromise: Promise<MermaidApi> | undefined;
+  let activeRender: Promise<number> | undefined;
 
   return async (root = document) => {
     if (findMermaidBlocks(root).length === 0) return 0;
+    if (activeRender) return activeRender;
     apiPromise ??= loadModule().then(({ default: api }) => {
       api.initialize({
         startOnLoad: false,
@@ -272,8 +280,12 @@ export function createMermaidInitializer(loadModule = defaultLoader) {
       });
       return api;
     });
-    const api = await apiPromise;
-    return renderMermaidBlocks(root, api.render.bind(api));
+    activeRender = apiPromise
+      .then((api) => renderMermaidBlocks(root, api.render.bind(api)))
+      .finally(() => {
+        activeRender = undefined;
+      });
+    return activeRender;
   };
 }
 ```
@@ -614,4 +626,3 @@ Verify:
 - [ ] **Step 5: Report release evidence**
 
 Return the public article URL, branch commits, PR URL, merge SHA, Pages workflow URL, final tests, known unchanged baseline failures, and clean `main...origin/main` state.
-
