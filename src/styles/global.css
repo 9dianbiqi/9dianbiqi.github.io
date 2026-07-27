@@ -1102,7 +1102,7 @@ h3 {
 
 .prose .mermaid-diagram svg {
   display: block;
-  min-width: min(40rem, 100%);
+  min-width: 100%;
   max-width: none !important;
   height: auto;
   margin-inline: auto;
@@ -1129,6 +1129,10 @@ h3 {
 @media (max-width: 640px) {
   .prose .mermaid-diagram__canvas {
     padding: 12px;
+  }
+
+  .prose .mermaid-diagram svg {
+    min-width: 36rem;
   }
 }
 
