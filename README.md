@@ -33,6 +33,27 @@ npm run verify:music-player
 
 Spotify 歌单、汽水歌曲和免费站内播放限制见 [`docs/music-player-configuration.md`](docs/music-player-configuration.md)。Spotify iframe 内部样式、完整歌曲播放资格和地区限制由 Spotify 控制。
 
+## Mermaid 图表
+
+博客已全局支持 Mermaid。以后在任意 `.md` 或 `.mdx` 文章中使用标准代码围栏即可，无需单独导入组件：
+
+````markdown
+```mermaid
+flowchart LR
+  A["开始"] --> B["完成"]
+```
+````
+
+图表仅在当前页面包含 Mermaid 代码块时按需加载；渲染失败时会保留源码，便于阅读和排查。
+普通说明性文本请使用 `plaintext` 代码围栏。出于安全考虑，Mermaid 采用严格模式，不支持自定义回调和不安全链接。
+
+本地自动化验证：
+
+```bash
+npm run verify:mermaid
+npm run build
+```
+
 ## 发布
 
 推送到 `main` 分支后，`.github/workflows/deploy.yml` 会使用 Astro 官方 GitHub Action 构建站点，并通过 GitHub Pages 发布到：

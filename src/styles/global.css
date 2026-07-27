@@ -1078,6 +1078,45 @@ h3 {
   line-height: 1.72;
 }
 
+.prose .mermaid-diagram {
+  width: 100%;
+  max-width: 100%;
+  margin: 1.6rem 0;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background:
+    linear-gradient(180deg, rgba(255, 253, 248, 0.98), rgba(238, 243, 237, 0.74)),
+    var(--surface);
+  box-shadow: 0 16px 42px rgba(20, 24, 23, 0.09);
+}
+
+.prose .mermaid-diagram__canvas {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  padding: 24px;
+  scrollbar-gutter: stable;
+}
+
+.prose .mermaid-diagram svg {
+  display: block;
+  min-width: 100%;
+  max-width: none !important;
+  height: auto;
+  margin-inline: auto;
+}
+
+.prose .mermaid-diagram-error {
+  margin-top: -0.75rem;
+  border-left: 3px solid var(--clay);
+  background: rgba(181, 95, 70, 0.07);
+  color: var(--ink-soft);
+  padding: 10px 12px;
+  font-size: 0.92rem;
+}
+
 .prose blockquote {
   margin-inline: 0;
   border-left: 3px solid var(--clay);
@@ -1085,6 +1124,16 @@ h3 {
   background: rgba(181, 95, 70, 0.07);
   color: var(--ink-soft);
   padding: 14px 18px;
+}
+
+@media (max-width: 640px) {
+  .prose .mermaid-diagram__canvas {
+    padding: 12px;
+  }
+
+  .prose .mermaid-diagram svg {
+    min-width: 36rem;
+  }
 }
 
 .prose blockquote > *:first-child {
