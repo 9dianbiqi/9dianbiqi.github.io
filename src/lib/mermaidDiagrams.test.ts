@@ -33,6 +33,10 @@ describe('renderMermaidBlocks', () => {
     expect(calls).toHaveLength(1);
     expect(calls[0].source).toBe('flowchart LR\n  A["输入"] --> B["输出"]');
     expect(document.querySelector('.mermaid-diagram svg')).not.toBeNull();
+    expect(document.querySelector('.mermaid-diagram')?.getAttribute('role')).toBe('img');
+    expect(document.querySelector('.mermaid-diagram')?.getAttribute('aria-label')).toBe(
+      '系统流程示意图',
+    );
     expect(document.querySelector('pre[data-language="mermaid"]')).toBeNull();
   });
 

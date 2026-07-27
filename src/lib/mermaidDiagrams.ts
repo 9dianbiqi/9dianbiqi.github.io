@@ -51,6 +51,7 @@ export async function renderMermaidBlocks(
       const result = await render(`mermaid-diagram-${diagramId++}`, source);
       const figure = block.ownerDocument.createElement('figure');
       figure.className = 'mermaid-diagram';
+      figure.setAttribute('role', 'img');
       figure.setAttribute('aria-label', getMermaidLabel(block));
       figure.innerHTML = `<div class="mermaid-diagram__canvas">${result.svg}</div>`;
       block.replaceWith(figure);
