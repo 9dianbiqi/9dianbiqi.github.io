@@ -124,24 +124,28 @@ VPN 一般同时解决三类问题：
 
 ## 一张图看懂 VPN 的基本结构
 
-```plaintext
-你的电脑
-  ├─ 真实网卡（Wi-Fi / 有线）
-  └─ 虚拟网卡（VPN 创建）
-           |
-           v
-      VPN 加密隧道
-           |
-           v
-      公司 VPN 网关
-           |
-           v
-     公司内网资源
-  ├─ 代码仓库
-  ├─ 堡垒机
-  ├─ OA 系统
-  ├─ 测试环境
-  └─ 内部数据库
+```mermaid
+flowchart TD
+  computer["你的电脑"]
+  physical["真实网卡（Wi-Fi / 有线）"]
+  virtual["虚拟网卡（VPN 创建）"]
+  tunnel["VPN 加密隧道"]
+  gateway["公司 VPN 网关"]
+  resources["公司内网资源"]
+  repository["代码仓库"]
+  bastion["堡垒机"]
+  oa["OA 系统"]
+  test["测试环境"]
+  database["内部数据库"]
+
+  computer --> physical
+  computer --> virtual
+  virtual --> tunnel --> gateway --> resources
+  resources --> repository
+  resources --> bastion
+  resources --> oa
+  resources --> test
+  resources --> database
 ```
 
 这张图里最关键的是：
@@ -256,9 +260,11 @@ VPN 服务端可能会给你下发：
 
 所以可以粗略理解成：
 
-```plaintext
-目标是普通公网地址 -> 走真实网卡
-目标是公司内网地址 -> 走 VPN 虚拟网卡
+```mermaid
+flowchart TD
+  target{"目标地址属于哪一类？"}
+  target -->|普通公网地址| physical["走真实网卡"]
+  target -->|公司内网地址| virtual["走 VPN 虚拟网卡"]
 ```
 
 这也是为什么 VPN 和“虚拟网卡”总是一起出现。
@@ -359,10 +365,10 @@ VPN 服务端可能会给你下发：
 
 很多时候流程是这样的：
 
-```plaintext
-先连 VPN
-再访问堡垒机
-再从堡垒机进入服务器
+```mermaid
+flowchart LR
+  vpn["先连接 VPN"] --> bastion["访问堡垒机"]
+  bastion --> server["从堡垒机进入服务器"]
 ```
 
 所以它们的关系通常不是互斥，而是协作：

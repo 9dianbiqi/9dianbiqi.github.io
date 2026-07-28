@@ -63,35 +63,20 @@ draft: false
 
 ## 核心流程
 
-```plaintext
-用户访问入口页
-  |
-  v
-判断是否已有用户状态
-  |
-  |-- 没有状态 -> 跳转统一登录
-  |                 |
-  |                 v
-  |              登录完成后回调前端
-  |                 |
-  |                 v
-  |              使用 code 换取用户信息
-  |                 |
-  |                 v
-  |              调用权限或订阅校验接口
-  |                 |
-  |                 |-- 无权限 -> 提示错误并返回业务入口
-  |                 |
-  |                 |-- 有权限 -> 写入临时用户状态
-  |
-  v
-查询或创建目标系统用户
-  |
-  v
-获取目标系统跳转链接
-  |
-  v
-重定向到目标系统
+```mermaid
+flowchart TD
+  entry["用户访问入口页"] --> state{"是否已有用户状态？"}
+  state -->|已有状态| targetUser["查询或创建目标系统用户"]
+  state -->|没有状态| login["跳转统一登录"]
+  login --> callback["登录完成后回调前端"]
+  callback --> exchange["使用 code 换取用户信息"]
+  exchange --> permission{"调用权限或订阅校验接口"}
+  permission -->|无权限| error["提示错误并返回业务入口"]
+  permission -->|有权限| save["写入临时用户状态"]
+  error --> entry
+  save --> targetUser
+  targetUser --> link["获取目标系统跳转链接"]
+  link --> redirect["重定向到目标系统"]
 ```
 
 ## 关键实现点
@@ -126,8 +111,10 @@ draft: false
 
 更推荐的结构是：
 
-```plaintext
-浏览器 -> 自有后端 -> 第三方服务
+```mermaid
+flowchart LR
+  browser["浏览器"] --> backend["自有后端"]
+  backend --> thirdParty["第三方服务"]
 ```
 
 前端只负责调用自有后端，真实密钥、签名算法、第三方 token 获取都放在服务端。这样可以降低密钥泄漏风险，也方便后端统一做审计、限流和错误处理。
