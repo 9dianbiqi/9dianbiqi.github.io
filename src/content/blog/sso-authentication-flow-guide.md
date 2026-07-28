@@ -234,10 +234,10 @@ flowchart TD
 
   subgraph callback["前端回调页"]
     read["读取 URL 中的 code"]
-    call["调用后端 /auth/sso/callback"]
+    requestBackend["调用后端 /auth/sso/callback"]
     status["展示登录状态"]
-    read --> call
-    call --> status
+    read --> requestBackend
+    requestBackend --> status
   end
 
   subgraph backend["后端回调接口"]
@@ -255,7 +255,7 @@ flowchart TD
   end
 
   redirect --> read
-  call --> validate
+  requestBackend --> validate
   response --> status
   status --> enter
   status --> error

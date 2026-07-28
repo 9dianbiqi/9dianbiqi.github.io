@@ -1085,8 +1085,8 @@ h3 {
   border-color: var(--line);
   background:
     linear-gradient(180deg, rgba(255, 253, 248, 0.98), rgba(248, 244, 234, 0.82)),
-    var(--surface);
-  color: var(--ink);
+    var(--surface) !important;
+  color: var(--ink) !important;
   padding: 42px 20px 20px;
   box-shadow: var(--shadow-card);
   scrollbar-gutter: stable;
