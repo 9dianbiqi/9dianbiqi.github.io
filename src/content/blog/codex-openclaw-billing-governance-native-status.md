@@ -23,18 +23,29 @@ draft: false
 
 这组提交围绕同一条链路补齐了费用治理、账期状态和采集可观测性：
 
-```plaintext
-run_after_review.py
-  -> billing collection
-       |-> ListBillDetail -> 账单明细 -> billing_daily_costs
-       |-> ListBill       -> 原生状态 -> billing_period_statuses
-       `-> QueryBalanceAcct -> 余额快照
-  -> SQLite 只读查询
-       |-> 本月累计 / 上月同期 / 产品变化归因
-       |-> 当前账期策略 / 历史原生状态 / 金额推导回退
-       `-> Top 10 产品与账单明细
-  -> FastAPI 服务端渲染
-  -> 响应式 Dashboard
+```mermaid
+flowchart TD
+  gate["run_after_review.py"] --> collect["billing collection"]
+  collect --> detail["ListBillDetail"]
+  detail --> billFacts["账单明细"]
+  billFacts --> dailyCosts["billing_daily_costs"]
+  collect --> bill["ListBill"]
+  bill --> nativeStatus["原生状态"]
+  nativeStatus --> periodStatuses["billing_period_statuses"]
+  collect --> balanceApi["QueryBalanceAcct"]
+  balanceApi --> balance["余额快照"]
+
+  dailyCosts --> query["SQLite 只读查询"]
+  periodStatuses --> query
+  balance --> query
+  query --> attribution["本月累计 / 上月同期 / 产品变化归因"]
+  query --> statusPolicy["当前账期策略 / 历史原生状态 / 金额推导回退"]
+  query --> ranking["Top 10 产品与账单明细"]
+
+  attribution --> server["FastAPI 服务端渲染"]
+  statusPolicy --> server
+  ranking --> server
+  server --> dashboard["响应式 Dashboard"]
 ```
 
 整个改造没有把云 API 调用放进 Dashboard。采集任务仍是唯一访问云端的组件，页面只读 SQLite；正式入口仍由运行前门禁限制为 `ListBill`、`ListBillDetail` 和 `QueryBalanceAcct` 三个只读动作。
@@ -129,12 +140,13 @@ Dashboard 查询会把状态表与账单事实按 provider、账号、账期和�
 
 每个账期的采集顺序是：
 
-```plaintext
-ListBillDetail 成功
-  -> 原子替换账单明细
-  -> ListBill 获取原生账期状态
-       |-> 成功：upsert 原生状态
-       `-> 失败：记录 fallback 日志，保留账单明细
+```mermaid
+flowchart TD
+  detail["ListBillDetail 成功"] --> replace["原子替换账单明细"]
+  replace --> status["ListBill 获取原生账期状态"]
+  status -->|成功| upsert["upsert 原生状态"]
+  status -->|失败| fallback["记录 fallback 日志"]
+  fallback --> keep["保留账单明细"]
 ```
 
 原生状态是增强信息，不应成为账单事实提交的前置条件。因此，`ListBill` 最终失败时不会删除或回滚已经成功同步的 `ListBillDetail` 数据，也不会写入伪造的 provider 状态行。Dashboard 会自然落到金额推导路径。`ListBill` 合法返回零行时也不会创建 provider 状态行，而是静默进入同一回退路径；这不是异常，所以不一定产生 `billing_status_fallback` 告警。
@@ -175,10 +187,13 @@ HTTP 错误正文最多读取固定字节数。JSON 响应优先解析 `Response
 
 服务端渲染把账单区域调整为：
 
-```plaintext
-左列：近三月账单概览 + 费用变化归因
-右列：Top 10 产品费用
-下方：Top 资源 + 账单明细
+```mermaid
+flowchart TB
+  dashboard["Dashboard"]
+  dashboard --> overview["左列：近三月账单概览<br/>费用变化归因"]
+  dashboard --> products["右列：Top 10 产品费用"]
+  overview --> details["下方：Top 资源 + 账单明细"]
+  products --> details
 ```
 
 桌面端让右侧 Top 10 与左侧两块内容自然等高；900px 以下切换为单列。表格保留必要的最小宽度，但横向滚动只发生在卡片内部的 `.table-wrap`，不再把整个页面撑出视口。

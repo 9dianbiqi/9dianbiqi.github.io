@@ -11,13 +11,13 @@ readingTime: "约 9 分钟"
 
 当前项目适合从“定时采集 + SQLite + Markdown 周报”升级为“定时采集 + SQLite + 动态只读 Dashboard”。推荐技术栈如下:
 
-```plaintext
-Kubernetes CronJob
-  -> Python collector
-  -> SQLite PVC
-  -> FastAPI Dashboard
-  -> HTMX / Alpine.js / Chart.js
-  -> 内网 Service / VPN
+```mermaid
+flowchart LR
+  cron["Kubernetes CronJob"] --> collector["Python collector"]
+  collector --> storage["SQLite PVC"]
+  storage --> dashboard["FastAPI Dashboard"]
+  dashboard --> frontend["HTMX / Alpine.js / Chart.js"]
+  frontend --> access["内网 Service / VPN"]
 ```
 
 核心选型:
@@ -52,13 +52,13 @@ Kubernetes CronJob
 
 当前项目已经具备:
 
-```plaintext
-scripts/run_after_review.py
-  -> review_gate
-  -> volcengine_billing provider
-  -> usage_samples
-  -> weekly_summary
-  -> Markdown report
+```mermaid
+flowchart LR
+  runner["scripts/run_after_review.py"] --> gate["review_gate"]
+  gate --> provider["volcengine_billing provider"]
+  provider --> samples["usage_samples"]
+  samples --> summary["weekly_summary"]
+  summary --> report["Markdown report"]
 ```
 
 现有数据表 `usage_samples` 已经能表达 Dashboard 第一版所需数据:
@@ -80,29 +80,19 @@ scripts/run_after_review.py
 
 ## 推荐目标架构
 
-```plaintext
-                  ┌──────────────────────────┐
-                  │ Kubernetes CronJob        │
-                  │ 10:00 / 18:00 collect     │
-                  └─────────────┬────────────┘
-                                │
-                                v
-                  ┌──────────────────────────┐
-                  │ run_after_review.py       │
-                  │ review gate + collect     │
-                  └─────────────┬────────────┘
-                                │
-                                v
-                  ┌──────────────────────────┐
-                  │ SQLite on PVC             │
-                  │ /app/work/usage.db        │
-                  └─────────────┬────────────┘
-                                │ read-only
-                                v
-┌───────────────┐  HTTP   ┌──────────────────────────┐
-│ Browser       ├────────>│ FastAPI Dashboard         │
-│ 内网/VPN 用户 │<────────┤ HTMX fragments + JSON API │
-└───────────────┘         └──────────────────────────┘
+```mermaid
+flowchart TD
+  cron["Kubernetes CronJob<br/>10:00 / 18:00 collect"]
+  runner["run_after_review.py<br/>review gate + collect"]
+  sqlite["SQLite on PVC<br/>/app/work/usage.db"]
+  dashboard["FastAPI Dashboard<br/>HTMX fragments + JSON API"]
+  browser["Browser<br/>内网 / VPN 用户"]
+
+  cron --> runner
+  runner --> sqlite
+  sqlite -->|read-only| dashboard
+  browser -->|HTTP 请求| dashboard
+  dashboard -->|HTML / JSON 响应| browser
 ```
 
 组件关系:
@@ -331,37 +321,16 @@ python scripts\serve_dashboard.py --config config\config.yaml --host 0.0.0.0 --p
 
 页面建议保持内部工具风格，信息密度适中，不做营销式布局。
 
-```plaintext
-顶部栏
-  - 标题
-  - 数据更新时间
-  - 服务健康状态
-
-筛选区
-  - 时间范围
-  - 服务选择
-  - 账号选择
-  - 资源搜索
-
-指标区
-  - 总成本
-  - 本周成本
-  - 环比
-  - 采样数
-
-图表区
-  - 每日成本趋势
-
-排行区
-  - Top 服务
-  - Top 资源
-
-明细区
-  - 账单采样明细
-  - 分页
-
-报告区
-  - 最新周报查看/下载
+```mermaid
+flowchart TD
+  page["Dashboard 页面"]
+  page --> header["顶部栏<br/>标题 · 数据更新时间 · 服务健康状态"]
+  header --> filters["筛选区<br/>时间范围 · 服务 · 账号 · 资源"]
+  filters --> metrics["指标区<br/>总成本 · 本周成本 · 环比 · 采样数"]
+  metrics --> chart["图表区<br/>每日成本趋势"]
+  chart --> ranking["排行区<br/>Top 服务 · Top 资源"]
+  ranking --> details["明细区<br/>账单采样明细 · 分页"]
+  details --> reports["报告区<br/>最新周报查看 / 下载"]
 ```
 
 ## SQLite 只读设计
@@ -409,19 +378,20 @@ Service cloud-usage-dashboard
 
 推荐拓扑:
 
-```plaintext
-cloud-usage-data PVC
-  ├─ work/usage.db
-  └─ outputs/reports/
+```mermaid
+flowchart LR
+  pvc[("cloud-usage-data PVC")]
+  database["work/usage.db"]
+  reports["outputs/reports/"]
+  collect["CronJob collect"]
+  weekly["CronJob weekly-report"]
+  dashboard["Dashboard Deployment"]
 
-CronJob collect
-  └─ mount PVC read-write
-
-CronJob weekly-report
-  └─ mount PVC read-write
-
-Dashboard Deployment
-  └─ mount PVC read-only
+  pvc --> database
+  pvc --> reports
+  collect -->|read-write| pvc
+  weekly -->|read-write| pvc
+  dashboard -->|read-only| pvc
 ```
 
 Service:

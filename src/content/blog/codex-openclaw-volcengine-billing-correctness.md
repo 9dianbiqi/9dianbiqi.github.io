@@ -17,12 +17,12 @@ draft: false
 
 项目原本是一套轻量云用量监控链路：Kubernetes CronJob 在每天 10:00 和 18:00 触发 Python 采集器，采集器先经过运行前审查门禁，再调用火山引擎 `ListBillDetail`，把返回结果归一化为通用 `usage_samples` 记录并写入 SQLite。FastAPI Dashboard 只读 SQLite，HTMX、Alpine.js 和 Chart.js 负责筛选与图表；每周任务从同一张表生成 Markdown 周报。
 
-```plaintext
-CronJob
-  -> run_after_review.py
-  -> ListBillDetail
-  -> usage_samples
-  -> Dashboard / weekly report
+```mermaid
+flowchart LR
+  cron["CronJob"] --> gate["run_after_review.py"]
+  gate --> bill["ListBillDetail"]
+  bill --> samples["usage_samples"]
+  samples --> consumers["Dashboard / weekly report"]
 ```
 
 这套架构轻量、部署简单，前端不接触 AK/SK，Dashboard 也不直接访问云 API。但 `usage_samples` 是“观测采样”模型，不是“账单事实”模型。每次采集得到的是整个账期快照，如果不断追加后再求和，同一笔账单会被重复累计；`sampled_at` 表示采集时间，也不能代表费用真正发生的日期。
@@ -33,14 +33,18 @@ CronJob
 
 本次采用“领域表 + 采集运行账本”的方案，保留 SQLite、CronJob 和只读 Dashboard，不引入消息队列或外部数据库。
 
-```plaintext
-CronJob
-  -> review gate
-  -> billing collection orchestrator
-       |-> ListBillDetail     -> billing_daily_costs
-       |-> QueryBalanceAcct   -> account_balance_snapshots
-       `-> collection_runs
-  -> read-only Dashboard / weekly report
+```mermaid
+flowchart TD
+  cron["CronJob"] --> gate["review gate"]
+  gate --> orchestrator["billing collection orchestrator"]
+  orchestrator --> detail["ListBillDetail"]
+  detail --> costs["billing_daily_costs"]
+  orchestrator --> balance["QueryBalanceAcct"]
+  balance --> snapshots["account_balance_snapshots"]
+  orchestrator --> runs["collection_runs"]
+  costs --> consumers["read-only Dashboard / weekly report"]
+  snapshots --> consumers
+  runs --> consumers
 ```
 
 新增三类权威数据：
