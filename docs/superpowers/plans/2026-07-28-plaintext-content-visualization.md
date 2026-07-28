@@ -1,6 +1,6 @@
 # Plaintext Content Visualization Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Reclassify all 84 legacy `text`/`plaintext` blocks across 13 published posts so relationship-heavy content renders as Mermaid and literal content renders as a warm light plaintext card.
 
@@ -45,7 +45,7 @@
 - Consumes: Markdown/MDX sources in `src/content/blog` and `src/styles/global.css`.
 - Produces: `npm run verify:article-visuals`, exiting non-zero for legacy `text` fences, missing representative Mermaid migrations, or missing plaintext scoping/overflow styles.
 
-- [ ] **Step 1: Extend the verifier before production edits**
+- [x] **Step 1: Extend the verifier before production edits**
 
 Add fenced-block parsing that recognizes opening fences at line start:
 
@@ -85,7 +85,7 @@ assert.match(styles, /pre\[data-language="plaintext"\][^{]*code\s+span[^{]*\{[^}
 
 Production mutations caught: reintroducing `text`, losing a required migrated diagram, broadening the override to all code, or removing internal overflow.
 
-- [ ] **Step 2: Run the verifier and observe RED**
+- [x] **Step 2: Run the verifier and observe RED**
 
 Run:
 
@@ -95,7 +95,7 @@ npm run verify:article-visuals
 
 Expected: FAIL first because 59 legacy `text` fences remain and plaintext card styles do not exist.
 
-- [ ] **Step 3: Commit only the failing contract**
+- [x] **Step 3: Commit only the failing contract**
 
 ```powershell
 git add -- scripts/verify-article-visuals.mjs
@@ -113,7 +113,7 @@ git commit -m "test: define article visual classification contract"
 - Consumes: Shiki output shaped as `<pre data-language="plaintext"><code><span>…`.
 - Produces: a token-based light card with literal whitespace, inherited monochrome text, internal horizontal scroll, and a decorative `PLAINTEXT` label.
 
-- [ ] **Step 1: Add the minimum scoped stylesheet**
+- [x] **Step 1: Add the minimum scoped stylesheet**
 
 Place the rules after the generic `.prose pre code` rules and before Mermaid styles:
 
@@ -150,7 +150,7 @@ Place the rules after the generic `.prose pre code` rules and before Mermaid sty
 
 At `max-width: 640px`, reduce horizontal padding to 14 pixels and keep overflow on the card, not `.prose` or `body`.
 
-- [ ] **Step 2: Run the verifier and confirm the failure advances**
+- [x] **Step 2: Run the verifier and confirm the failure advances**
 
 Run:
 
@@ -160,7 +160,7 @@ npm run verify:article-visuals
 
 Expected: plaintext CSS assertions PASS; command still FAILS because legacy `text` fences and representative Mermaid migrations remain.
 
-- [ ] **Step 3: Check ordinary code selectors remain untouched**
+- [x] **Step 3: Check ordinary code selectors remain untouched**
 
 Run:
 
@@ -171,7 +171,7 @@ rg -n 'pre\\[data-language="plaintext"\\]' src/styles/global.css
 
 Expected: every new Shiki override includes the plaintext attribute selector; no generic `.prose pre` color is changed.
 
-- [ ] **Step 4: Commit the plaintext visual**
+- [x] **Step 4: Commit the plaintext visual**
 
 ```powershell
 git add -- src/styles/global.css
@@ -201,11 +201,11 @@ git commit -m "style: add light plaintext article cards"
 - Consumes: the audited 84 legacy fences.
 - Produces: no `text` fences; retained literal blocks use `plaintext` without changing their contents.
 
-- [ ] **Step 1: Rename all legacy opening fences**
+- [x] **Step 1: Rename all legacy opening fences**
 
 Change only opening ` ```text ` lines to ` ```plaintext ` in the 13 listed files. Do not edit block bodies in this step.
 
-- [ ] **Step 2: Verify normalization**
+- [x] **Step 2: Verify normalization**
 
 Run:
 
@@ -217,7 +217,7 @@ npm run build
 
 Expected: the first command has no matches; all articles compile. `verify:article-visuals` still fails because required flow candidates have not yet become Mermaid.
 
-- [ ] **Step 3: Commit semantic normalization**
+- [x] **Step 3: Commit semantic normalization**
 
 ```powershell
 git add -- src/content/blog
@@ -238,7 +238,7 @@ git commit -m "content: normalize literal article blocks"
 - Consumes: relationship blocks normalized in Task 3.
 - Produces: valid Mermaid fences while literal dates, formulas, status priority, endpoints, filenames, dependencies, and summaries remain plaintext.
 
-- [ ] **Step 1: Convert the Feishu polling chain**
+- [x] **Step 1: Convert the Feishu polling chain**
 
 Replace the `poll_once` block with:
 
@@ -253,7 +253,7 @@ flowchart TD
   state --> groups["link_oncall_groups"]
 ```
 
-- [ ] **Step 2: Convert billing-governance relationships**
+- [x] **Step 2: Convert billing-governance relationships**
 
 Convert the collection pipeline, `ListBill` success/fallback branch, and dashboard layout relationship. Keep the date windows, formula, priority line, and literal labels as plaintext. The branch diagram must contain:
 
@@ -266,7 +266,7 @@ flowchart TD
   fallback --> keep["保留账单明细"]
 ```
 
-- [ ] **Step 3: Convert dynamic-dashboard relationships**
+- [x] **Step 3: Convert dynamic-dashboard relationships**
 
 Convert only:
 
@@ -278,11 +278,11 @@ Convert only:
 
 Keep module paths, query method names, parameters, endpoints, SQLite URI, Kubernetes object lists, ports, task names, dependency names, asset names, health endpoint, and closing summary as plaintext.
 
-- [ ] **Step 4: Convert Volcengine billing old/new architectures**
+- [x] **Step 4: Convert Volcengine billing old/new architectures**
 
 Convert both architecture blocks. Preserve `1 CNY = 1,000,000 micros` as plaintext.
 
-- [ ] **Step 5: Validate Mermaid syntax through the real build and browser runtime**
+- [x] **Step 5: Validate Mermaid syntax through the real build and browser runtime**
 
 Run:
 
@@ -293,7 +293,7 @@ npx playwright test e2e/mermaid-diagrams.spec.ts
 
 Expected: build PASS; existing Mermaid routes remain green. New routes are manually opened during Task 8 for visual syntax verification.
 
-- [ ] **Step 6: Commit operations and billing diagrams**
+- [x] **Step 6: Commit operations and billing diagrams**
 
 ```powershell
 git add -- src/content/blog/feishu-operations-cli-architecture.md src/content/blog/codex-openclaw-billing-governance-native-status.md src/content/blog/codex-openclaw-dynamic-dashboard-technical-architecture.md src/content/blog/codex-openclaw-volcengine-billing-correctness.md
@@ -313,7 +313,7 @@ git commit -m "content: visualize operations and billing flows"
 - Consumes: normalized relationship blocks.
 - Produces: Mermaid flowcharts for login, token exchange, authorization, network topology, route decisions, and bastion access.
 
-- [ ] **Step 1: Convert the SSO guide**
+- [x] **Step 1: Convert the SSO guide**
 
 Convert:
 
@@ -325,11 +325,11 @@ Convert:
 
 Keep the system-name list, explanatory sentences, callback URLs, and the two literal identity/authorization questions as plaintext.
 
-- [ ] **Step 2: Convert the Vue SSO integration article**
+- [x] **Step 2: Convert the Vue SSO integration article**
 
 Convert the entry decision tree and `浏览器 -> 自有后端 -> 第三方服务` chain. Use explicit branch labels `已有状态` and `没有状态`.
 
-- [ ] **Step 3: Convert the VPN guide**
+- [x] **Step 3: Convert the VPN guide**
 
 Convert:
 
@@ -339,7 +339,7 @@ Convert:
 
 Keep route CIDRs, global/split mode definitions, and the final study outline as plaintext.
 
-- [ ] **Step 4: Build and inspect parser results**
+- [x] **Step 4: Build and inspect parser results**
 
 Run:
 
@@ -350,7 +350,7 @@ rg -n '^```mermaid\\s*$' src/content/blog/sso-authentication-flow-guide.md src/c
 
 Expected: build PASS and each of the three files contains migrated Mermaid fences.
 
-- [ ] **Step 5: Commit authentication and network diagrams**
+- [x] **Step 5: Commit authentication and network diagrams**
 
 ```powershell
 git add -- src/content/blog/sso-authentication-flow-guide.md src/content/blog/vue-sso-third-party-integration-page.md src/content/blog/vpn-basics-for-beginners.mdx
@@ -369,7 +369,7 @@ git commit -m "content: visualize authentication and VPN flows"
 - Consumes: normalized relationship blocks.
 - Produces: Mermaid flows for agent processing, work switching, correct query ordering, and the documented anti-pattern.
 
-- [ ] **Step 1: Convert the DeepResearch processing chain**
+- [x] **Step 1: Convert the DeepResearch processing chain**
 
 Use:
 
@@ -382,7 +382,7 @@ flowchart LR
   evaluation --> persistence["persistence"]
 ```
 
-- [ ] **Step 2: Convert parallel-development flows**
+- [x] **Step 2: Convert parallel-development flows**
 
 Convert:
 
@@ -392,7 +392,7 @@ Convert:
 
 Keep physical worktree/branch trees, branch-to-directory mappings, date intervals, merge markers, and delivery summary as plaintext.
 
-- [ ] **Step 3: Run the complete visual verifier**
+- [x] **Step 3: Run the complete visual verifier**
 
 Run:
 
@@ -402,7 +402,7 @@ npm run verify:article-visuals
 
 Expected: PASS. All required representative posts now have Mermaid and no legacy `text` fence remains.
 
-- [ ] **Step 4: Commit development workflow diagrams**
+- [x] **Step 4: Commit development workflow diagrams**
 
 ```powershell
 git add -- src/content/blog/helloagents-deepresearch-interview-qa.md src/content/blog/parallel-frontend-backend-development.md
@@ -421,7 +421,7 @@ git commit -m "content: visualize development workflow sequences"
 - Consumes: `.mermaid-diagram` and `pre[data-language="plaintext"]` rendered pages.
 - Produces: documented author rules and Playwright evidence that plaintext is light, ordinary code remains dark, and mobile document width is stable.
 
-- [ ] **Step 1: Add failing browser assertions**
+- [x] **Step 1: Add failing browser assertions**
 
 Extend the first test to visit the Feishu architecture article and assert:
 
@@ -444,7 +444,7 @@ Extend the 375-pixel test so both `.mermaid-diagram` and `pre[data-language="pla
 
 Production mutations caught: Shiki dark background leaking into plaintext, a broad override making Python light, or card overflow widening the document.
 
-- [ ] **Step 2: Run Playwright and observe RED if the CSS is incomplete**
+- [x] **Step 2: Run Playwright and observe RED if the CSS is incomplete**
 
 Run:
 
@@ -454,7 +454,7 @@ npx playwright test e2e/mermaid-diagrams.spec.ts
 
 Expected before any required CSS correction: FAIL on the mismatched computed color or width. If Task 2 already satisfies it, temporarily remove only the plaintext selector in the working tree, observe the expected failure, restore it, and continue without committing the broken state.
 
-- [ ] **Step 3: Make the minimum CSS correction and rerun GREEN**
+- [x] **Step 3: Make the minimum CSS correction and rerun GREEN**
 
 Only if the browser test reveals an actual mismatch, update the Task 2 selectors or mobile padding. Then run:
 
@@ -464,7 +464,7 @@ npx playwright test e2e/mermaid-diagrams.spec.ts
 
 Expected: PASS.
 
-- [ ] **Step 4: Expand README classification rules**
+- [x] **Step 4: Expand README classification rules**
 
 Document this decision table:
 
@@ -484,7 +484,7 @@ npm run verify:mermaid
 npm run build
 ```
 
-- [ ] **Step 5: Commit documentation and browser coverage**
+- [x] **Step 5: Commit documentation and browser coverage**
 
 ```powershell
 git add -- README.md e2e/mermaid-diagrams.spec.ts src/styles/global.css
@@ -502,7 +502,7 @@ git commit -m "test: protect article plaintext presentation"
 - Consumes: all content, CSS, documentation, and test changes.
 - Produces: reproducible local evidence and a preview URL for user approval.
 
-- [ ] **Step 1: Verify classification counts**
+- [x] **Step 1: Verify classification counts**
 
 Run:
 
@@ -514,7 +514,7 @@ rg -n '^```mermaid\\s*$' src/content/blog
 
 Expected: zero legacy `text` matches; both plaintext and Mermaid matches remain.
 
-- [ ] **Step 2: Run unit, static, build, and E2E gates**
+- [x] **Step 2: Run unit, static, build, and E2E gates**
 
 Run:
 
@@ -540,7 +540,7 @@ git diff --check
 
 Expected: every command PASS with no new warnings or errors.
 
-- [ ] **Step 3: Start or refresh the local production preview**
+- [x] **Step 3: Start or refresh the local production preview**
 
 Run:
 
@@ -555,7 +555,7 @@ Open:
 - `/blog/sso-authentication-flow-guide/?preview=plaintext`
 - `/blog/vpn-basics-for-beginners/?preview=plaintext`
 
-- [ ] **Step 4: Inspect 1440, 768, and 375 pixel widths**
+- [x] **Step 4: Inspect 1440, 768, and 375 pixel widths**
 
 At each width verify:
 
@@ -566,11 +566,11 @@ At each width verify:
 - wide cards scroll only inside themselves;
 - diagrams remain readable and do not overlap the reading rail.
 
-- [ ] **Step 5: Present preview and stop before remote publication**
+- [x] **Step 5: Present preview and stop before remote publication**
 
 Give the user the local preview URL, changed-post count, diagram/plaintext counts, and test results. Request explicit publication approval.
 
-- [ ] **Step 6: Commit plan completion metadata**
+- [x] **Step 6: Commit plan completion metadata**
 
 Check off completed boxes in this plan, then:
 
@@ -578,6 +578,16 @@ Check off completed boxes in this plan, then:
 git add -- docs/superpowers/plans/2026-07-28-plaintext-content-visualization.md
 git commit -m "docs: record plaintext migration execution"
 ```
+
+Execution evidence:
+
+- Audited legacy blocks: 84 across 13 posts.
+- Final classification: 59 `plaintext`, 25 newly migrated Mermaid diagrams, 0 legacy `text`.
+- Repository Mermaid total after migration: 36.
+- Unit tests: 29 passed.
+- Static verification, Astro check, and production build: passed.
+- Full Playwright suite: 18 passed using the installed system Chrome because the Playwright Chromium download endpoint timed out.
+- Browser preview: 1440, 768, and 375 pixels passed without document-level horizontal overflow.
 
 ---
 
