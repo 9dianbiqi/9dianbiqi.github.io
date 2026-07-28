@@ -17,7 +17,7 @@ draft: false
 
 项目原本是一套轻量云用量监控链路：Kubernetes CronJob 在每天 10:00 和 18:00 触发 Python 采集器，采集器先经过运行前审查门禁，再调用火山引擎 `ListBillDetail`，把返回结果归一化为通用 `usage_samples` 记录并写入 SQLite。FastAPI Dashboard 只读 SQLite，HTMX、Alpine.js 和 Chart.js 负责筛选与图表；每周任务从同一张表生成 Markdown 周报。
 
-```text
+```plaintext
 CronJob
   -> run_after_review.py
   -> ListBillDetail
@@ -33,7 +33,7 @@ CronJob
 
 本次采用“领域表 + 采集运行账本”的方案，保留 SQLite、CronJob 和只读 Dashboard，不引入消息队列或外部数据库。
 
-```text
+```plaintext
 CronJob
   -> review gate
   -> billing collection orchestrator
@@ -67,7 +67,7 @@ CronJob
 
 账单金额以整数微单位保存：
 
-```text
+```plaintext
 1 CNY = 1,000,000 micros
 ```
 

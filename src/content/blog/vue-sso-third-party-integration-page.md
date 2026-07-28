@@ -63,7 +63,7 @@ draft: false
 
 ## 核心流程
 
-```text
+```plaintext
 用户访问入口页
   |
   v
@@ -126,7 +126,7 @@ draft: false
 
 更推荐的结构是：
 
-```text
+```plaintext
 浏览器 -> 自有后端 -> 第三方服务
 ```
 

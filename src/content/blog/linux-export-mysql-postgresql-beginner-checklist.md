@@ -220,14 +220,14 @@ mkdir -p /data/db_exports/2026-07-09
 
 例如：
 
-```text
+```plaintext
 mysql_order_prod_full_20260709_103000.sql
 postgres_user_center_table_account_20260709_104500.dump
 ```
 
 如果是压缩后，可以是：
 
-```text
+```plaintext
 mysql_order_prod_full_20260709_103000.sql.gz
 postgres_billing_partial_20260709_104500.dump.gz
 ```
@@ -256,7 +256,7 @@ gzip filename.sql
 
 压缩后文件会变成：
 
-```text
+```plaintext
 filename.sql.gz
 ```
 
@@ -489,7 +489,7 @@ sha256sum postgres_database_name_full_20260709_110500.dump
 
 比如误导出到：
 
-```text
+```plaintext
 /root
 /var
 当前不明目录
@@ -508,7 +508,7 @@ df -h
 
 如果你总叫：
 
-```text
+```plaintext
 backup.sql
 ```
 
@@ -540,7 +540,7 @@ backup.sql
 
 ## 一份适合小白记忆的总清单
 
-```text
+```plaintext
 Linux 导出数据库前
 1. 确认导出范围：整库 / 表 / 结构 / 数据
 2. 确认数据库类型：MySQL / PostgreSQL

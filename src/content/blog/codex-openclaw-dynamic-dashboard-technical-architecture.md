@@ -11,7 +11,7 @@ readingTime: "约 9 分钟"
 
 当前项目适合从“定时采集 + SQLite + Markdown 周报”升级为“定时采集 + SQLite + 动态只读 Dashboard”。推荐技术栈如下:
 
-```text
+```plaintext
 Kubernetes CronJob
   -> Python collector
   -> SQLite PVC
@@ -52,7 +52,7 @@ Kubernetes CronJob
 
 当前项目已经具备:
 
-```text
+```plaintext
 scripts/run_after_review.py
   -> review_gate
   -> volcengine_billing provider
@@ -80,7 +80,7 @@ scripts/run_after_review.py
 
 ## 推荐目标架构
 
-```text
+```plaintext
                   ┌──────────────────────────┐
                   │ Kubernetes CronJob        │
                   │ 10:00 / 18:00 collect     │
@@ -177,7 +177,7 @@ Chart.js 足够覆盖这些需求。相比 ECharts，它更轻；相比手写 SV
 
 建议新增模块:
 
-```text
+```plaintext
 cloud_usage_monitor/dashboard_queries.py
 cloud_usage_monitor/dashboard_server.py
 scripts/serve_dashboard.py
@@ -194,7 +194,7 @@ scripts/serve_dashboard.py
 
 核心查询:
 
-```text
+```plaintext
 summary(filters)
 daily_trend(filters)
 top_services(filters)
@@ -206,7 +206,7 @@ latest_sample_time()
 
 筛选参数:
 
-```text
+```plaintext
 start_date
 end_date
 account_id
@@ -228,7 +228,7 @@ offset
 
 推荐路由:
 
-```text
+```plaintext
 GET /healthz
 GET /
 GET /api/summary
@@ -331,7 +331,7 @@ python scripts\serve_dashboard.py --config config\config.yaml --host 0.0.0.0 --p
 
 页面建议保持内部工具风格，信息密度适中，不做营销式布局。
 
-```text
+```plaintext
 顶部栏
   - 标题
   - 数据更新时间
@@ -370,7 +370,7 @@ Dashboard 必须使用独立只读连接，不复用当前 `db.connect()`。
 
 推荐连接方式:
 
-```text
+```plaintext
 file:/app/work/usage.db?mode=ro
 ```
 
@@ -392,7 +392,7 @@ PRAGMA query_only = ON;
 
 当前已有:
 
-```text
+```plaintext
 ConfigMap
 PVC
 CronJob collect-1000
@@ -402,14 +402,14 @@ CronJob weekly-report
 
 新增:
 
-```text
+```plaintext
 Deployment cloud-usage-dashboard
 Service cloud-usage-dashboard
 ```
 
 推荐拓扑:
 
-```text
+```plaintext
 cloud-usage-data PVC
   ├─ work/usage.db
   └─ outputs/reports/
@@ -426,7 +426,7 @@ Dashboard Deployment
 
 Service:
 
-```text
+```plaintext
 type: ClusterIP
 port: 8780
 ```
@@ -441,7 +441,7 @@ port: 8780
 
 当前容器主要服务批处理脚本。升级后同一个镜像可同时支持:
 
-```text
+```plaintext
 collect task
 weekly report task
 dashboard server
@@ -449,21 +449,21 @@ dashboard server
 
 需要新增:
 
-```text
+```plaintext
 requirements.txt
 cloud_usage_monitor/dashboard_assets/
 ```
 
 依赖:
 
-```text
+```plaintext
 fastapi
 uvicorn
 ```
 
 静态前端资源建议 vendored:
 
-```text
+```plaintext
 htmx.min.js
 alpine.min.js
 chart.umd.js
@@ -501,7 +501,7 @@ dashboard.js
 
 健康检查:
 
-```text
+```plaintext
 GET /healthz
 ```
 
@@ -569,7 +569,7 @@ GET /healthz
 
 最终形态:
 
-```text
+```plaintext
 采集写入由 CronJob 负责
 数据存储继续使用 SQLite
 运营访问通过 FastAPI Dashboard

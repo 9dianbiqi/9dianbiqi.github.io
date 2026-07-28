@@ -11,7 +11,7 @@ draft: false
 
 比如一个公司内部可能有这些系统：
 
-```text
+```plaintext
 OA 系统
 项目管理系统
 数据看板
@@ -28,7 +28,7 @@ SSO 是 Single Sign-On 的缩写，中文通常叫单点登录。
 
 它的核心目标是：
 
-```text
+```plaintext
 用户只登录一次，就可以访问多个互相信任的系统。
 ```
 
@@ -54,7 +54,7 @@ SSO 解决的不只是“少输几次密码”。
 
 可以先看一个典型流程：
 
-```text
+```plaintext
 用户
   |
   v
@@ -88,19 +88,19 @@ SSO 解决的不只是“少输几次密码”。
 
 业务系统告诉统一登录平台：
 
-```text
+```plaintext
 用户登录完成后，请把他送回这个地址。
 ```
 
 这个地址通常长这样：
 
-```text
+```plaintext
 https://example.com/login/callback
 ```
 
 登录平台完成认证后，会重定向到这个地址，并在 URL 上带一个临时凭证：
 
-```text
+```plaintext
 https://example.com/login/callback?code=temporary_code
 ```
 
@@ -118,7 +118,7 @@ https://example.com/login/callback?code=temporary_code
 
 比较安全的做法是：
 
-```text
+```plaintext
 前端拿到 code
   |
   v
@@ -170,7 +170,7 @@ https://example.com/login/callback?code=temporary_code
 
 推荐结构是：
 
-```text
+```plaintext
 浏览器
   |
   v
@@ -186,13 +186,13 @@ https://example.com/login/callback?code=temporary_code
 
 SSO 只能证明：
 
-```text
+```plaintext
 这个用户是谁。
 ```
 
 但它不一定能证明：
 
-```text
+```plaintext
 这个用户能不能访问当前业务。
 ```
 
@@ -206,7 +206,7 @@ SSO 只能证明：
 
 这也是为什么一个完整登录流程常常是：
 
-```text
+```plaintext
 身份认证 -> 用户信息获取 -> 业务权限校验 -> 进入系统
 ```
 
@@ -247,7 +247,7 @@ SSO 集成页一定要把异常路径设计清楚。
 
 可以把一次登录拆成这样：
 
-```text
+```plaintext
 前端入口页：
   - 检查是否已登录
   - 未登录则跳转统一登录平台

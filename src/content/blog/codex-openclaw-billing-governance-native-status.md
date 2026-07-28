@@ -23,7 +23,7 @@ draft: false
 
 这组提交围绕同一条链路补齐了费用治理、账期状态和采集可观测性：
 
-```text
+```plaintext
 run_after_review.py
   -> billing collection
        |-> ListBillDetail -> 账单明细 -> billing_daily_costs
@@ -47,7 +47,7 @@ run_after_review.py
 
 比较区间由 `_month_comparison_bounds()` 生成：
 
-```text
+```plaintext
 参考日期：2026-07-15
 本月累计：2026-07-01 -> 2026-07-15
 上月同期：2026-06-01 -> 2026-06-15
@@ -57,7 +57,7 @@ run_after_review.py
 
 查询按 `service_name` 聚合本月和上月同期的 `payable_amount_micros`，然后计算：
 
-```text
+```plaintext
 变化金额 = 本月累计 - 上月同期
 环比 = 变化金额 / 上月同期 * 100%
 ```
@@ -97,7 +97,7 @@ run_after_review.py
 
 一个账期可能返回多行状态。聚合时采用保守优先级：
 
-```text
+```plaintext
 出账中 > 未结清 > 已结清
 ```
 
@@ -129,7 +129,7 @@ Dashboard 查询会把状态表与账单事实按 provider、账号、账期和�
 
 每个账期的采集顺序是：
 
-```text
+```plaintext
 ListBillDetail 成功
   -> 原子替换账单明细
   -> ListBill 获取原生账期状态
@@ -175,7 +175,7 @@ HTTP 错误正文最多读取固定字节数。JSON 响应优先解析 `Response
 
 服务端渲染把账单区域调整为：
 
-```text
+```plaintext
 左列：近三月账单概览 + 费用变化归因
 右列：Top 10 产品费用
 下方：Top 资源 + 账单明细

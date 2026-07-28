@@ -60,7 +60,7 @@ Django 对当前本地工具型应用偏重，Flask 又需要额外补类型校�
 
 **A：** Harness 不重新实现研究逻辑，只是在研究执行前后插入控制逻辑：
 
-```text
+```plaintext
 request -> policy -> DeepResearchAgent -> compression -> evaluation -> persistence
 ```
 
