@@ -101,14 +101,22 @@ sequenceDiagram
 实际链路可以概括为：
 
 ```mermaid
-flowchart TD
-  poll["poll_once"] --> memory["sync_memory"]
-  memory --> fetch["fetch_page"]
-  fetch --> normalize["normalize_message"]
-  normalize --> download["download_resource"]
-  download --> inbox["append_inbox"]
-  inbox --> state["save_state"]
-  state --> groups["link_oncall_groups"]
+flowchart TB
+  subgraph collect["消息采集与规范化"]
+    direction LR
+    poll["poll_once"] --> memory["sync_memory"]
+    memory --> fetch["fetch_page"]
+    fetch --> normalize["normalize_message"]
+  end
+
+  subgraph persist["证据落盘与关联"]
+    direction LR
+    download["download_resource"] --> inbox["append_inbox"]
+    inbox --> state["save_state"]
+    state --> groups["link_oncall_groups"]
+  end
+
+  normalize --> download
 ```
 
 这条链路先补齐人员角色信息，再分页拉取消息、下载证据、落盘并推进游标。串行访问降低了外部 API 冲突，但也让单次慢调用更容易拖住整轮任务。
