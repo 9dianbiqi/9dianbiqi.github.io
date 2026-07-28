@@ -60,8 +60,13 @@ Django 对当前本地工具型应用偏重，Flask 又需要额外补类型校�
 
 **A：** Harness 不重新实现研究逻辑，只是在研究执行前后插入控制逻辑：
 
-```plaintext
-request -> policy -> DeepResearchAgent -> compression -> evaluation -> persistence
+```mermaid
+flowchart LR
+  request["request"] --> policy["policy"]
+  policy --> agent["DeepResearchAgent"]
+  agent --> compression["compression"]
+  compression --> evaluation["evaluation"]
+  evaluation --> persistence["persistence"]
 ```
 
 它更像外观层或装饰层，让研究过程可审计、可回放、可评估。
