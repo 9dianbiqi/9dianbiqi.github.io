@@ -11,7 +11,7 @@ draft: false
 
 比如一个公司内部可能有这些系统：
 
-```text
+```plaintext
 OA 系统
 项目管理系统
 数据看板
@@ -28,7 +28,7 @@ SSO 是 Single Sign-On 的缩写，中文通常叫单点登录。
 
 它的核心目标是：
 
-```text
+```plaintext
 用户只登录一次，就可以访问多个互相信任的系统。
 ```
 
@@ -54,30 +54,14 @@ SSO 解决的不只是“少输几次密码”。
 
 可以先看一个典型流程：
 
-```text
-用户
-  |
-  v
-业务系统前端
-  |
-  | 1. 发现用户未登录
-  v
-统一登录平台
-  |
-  | 2. 用户输入账号、密码或完成其他认证
-  v
-统一登录平台生成一次性 code
-  |
-  | 3. 带着 code 回调业务系统
-  v
-业务系统后端
-  |
-  | 4. 用 code 换取用户信息或 token
-  v
-业务系统建立自己的会话
-  |
-  v
-用户进入业务页面
+```mermaid
+flowchart TD
+  user["用户"] --> frontend["业务系统前端"]
+  frontend -->|1. 发现用户未登录| login["统一登录平台"]
+  login -->|2. 完成账号、密码或其他认证| code["生成一次性 code"]
+  code -->|3. 携带 code 回调| backend["业务系统后端"]
+  backend -->|4. 用 code 换取用户信息或 token| session["建立业务系统自己的会话"]
+  session --> page["用户进入业务页面"]
 ```
 
 这个流程里，前端通常负责跳转和展示状态；后端负责真正的 code 校验、token 换取、用户会话建立和权限判断。
@@ -88,19 +72,19 @@ SSO 解决的不只是“少输几次密码”。
 
 业务系统告诉统一登录平台：
 
-```text
+```plaintext
 用户登录完成后，请把他送回这个地址。
 ```
 
 这个地址通常长这样：
 
-```text
+```plaintext
 https://example.com/login/callback
 ```
 
 登录平台完成认证后，会重定向到这个地址，并在 URL 上带一个临时凭证：
 
-```text
+```plaintext
 https://example.com/login/callback?code=temporary_code
 ```
 
@@ -118,17 +102,11 @@ https://example.com/login/callback?code=temporary_code
 
 比较安全的做法是：
 
-```text
-前端拿到 code
-  |
-  v
-后端用 code 换 token 或用户信息
-  |
-  v
-后端建立业务系统自己的 session
-  |
-  v
-前端只感知“已登录”
+```mermaid
+flowchart LR
+  code["前端拿到 code"] --> exchange["后端用 code 换 token 或用户信息"]
+  exchange --> session["后端建立业务系统自己的 session"]
+  session --> result["前端只感知“已登录”"]
 ```
 
 不要把 client secret、长期 token、第三方接口密钥直接放在前端。
@@ -170,14 +148,10 @@ https://example.com/login/callback?code=temporary_code
 
 推荐结构是：
 
-```text
-浏览器
-  |
-  v
-业务系统后端
-  |
-  v
-统一登录平台 / 第三方服务
+```mermaid
+flowchart LR
+  browser["浏览器"] --> backend["业务系统后端"]
+  backend --> provider["统一登录平台 / 第三方服务"]
 ```
 
 这样可以把密钥、签名、token 和权限判断都收在后端。
@@ -186,13 +160,13 @@ https://example.com/login/callback?code=temporary_code
 
 SSO 只能证明：
 
-```text
+```plaintext
 这个用户是谁。
 ```
 
 但它不一定能证明：
 
-```text
+```plaintext
 这个用户能不能访问当前业务。
 ```
 
@@ -206,8 +180,11 @@ SSO 只能证明：
 
 这也是为什么一个完整登录流程常常是：
 
-```text
-身份认证 -> 用户信息获取 -> 业务权限校验 -> 进入系统
+```mermaid
+flowchart LR
+  authenticate["身份认证"] --> profile["用户信息获取"]
+  profile --> authorize["业务权限校验"]
+  authorize --> system["进入系统"]
 ```
 
 ## 常见异常路径
@@ -247,26 +224,41 @@ SSO 集成页一定要把异常路径设计清楚。
 
 可以把一次登录拆成这样：
 
-```text
-前端入口页：
-  - 检查是否已登录
-  - 未登录则跳转统一登录平台
+```mermaid
+flowchart TD
+  subgraph entry["前端入口页"]
+    check["检查是否已登录"]
+    redirect["未登录则跳转统一登录平台"]
+    check --> redirect
+  end
 
-前端回调页：
-  - 读取 URL 中的 code
-  - 调用后端 /auth/sso/callback
-  - 展示登录状态
+  subgraph callback["前端回调页"]
+    read["读取 URL 中的 code"]
+    requestBackend["调用后端 /auth/sso/callback"]
+    status["展示登录状态"]
+    read --> requestBackend
+    requestBackend --> status
+  end
 
-后端回调接口：
-  - 校验 code
-  - 换取用户信息
-  - 查询业务权限
-  - 建立 session
-  - 返回登录结果
+  subgraph backend["后端回调接口"]
+    validate["校验 code"]
+    exchange["换取用户信息"]
+    permission["查询业务权限"]
+    session["建立 session"]
+    response["返回登录结果"]
+    validate --> exchange --> permission --> session --> response
+  end
 
-前端业务页：
-  - 根据登录结果进入系统
-  - 失败时显示原因并返回入口
+  subgraph business["前端业务页"]
+    enter["根据登录结果进入系统"]
+    error["失败时显示原因并返回入口"]
+  end
+
+  redirect --> read
+  requestBackend --> validate
+  response --> status
+  status --> enter
+  status --> error
 ```
 
 这个分工的重点是：前端编排流程，后端守住秘密和权限边界。

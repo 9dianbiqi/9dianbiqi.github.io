@@ -11,7 +11,7 @@ draft: false
 
 我这次想把博客首页从静态图片升级成动态视频背景。素材来自本机的 Steam Workshop 目录：
 
-```text
+```plaintext
 D:\steam\steamapps\workshop\content\431960\2488465732
 ```
 
@@ -21,7 +21,7 @@ D:\steam\steamapps\workshop\content\431960\2488465732
 
 我把文件整理成了更稳定的 ASCII 文件名：
 
-```text
+```plaintext
 public/
   media/
     home/
@@ -31,7 +31,7 @@ public/
 
 这样上线后，浏览器访问的就是：
 
-```text
+```plaintext
 /media/home/hero-video.mp4
 /media/home/hero-poster.jpg
 ```
@@ -104,7 +104,7 @@ export const home = {
 
 当前 MP4 大约 38 MB，作为第一版可以跑通，但长期最好再做压缩：
 
-```text
+```plaintext
 hero-video.webm
 hero-video.mp4
 hero-poster.jpg

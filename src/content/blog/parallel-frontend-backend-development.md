@@ -60,8 +60,11 @@ draft: false
 
 如果只创建两个分支，你仍然可以并行开发，但通常需要频繁切换目录：
 
-```plaintext
-修改功能 1 → git switch 功能 2 → 修改功能 2 → git switch 功能 1
+```mermaid
+flowchart LR
+  editOne["修改功能 1"] --> switchTwo["git switch 功能 2"]
+  switchTwo --> editTwo["修改功能 2"]
+  editTwo --> switchOne["git switch 功能 1"]
 ```
 
 如果使用两个 Worktree，就可以同时打开两个目录：
@@ -221,14 +224,21 @@ sql = f"SELECT * FROM usage_daily WHERE user_name = '{user_name}'"
 
 `LIMIT`、`OFFSET` 和筛选条件都应该经过类型校验。分页必须发生在聚合之后：
 
-```plaintext
-原始记录 → 条件筛选 → GROUP BY 聚合 → COUNT 总数 → LIMIT/OFFSET 分页
+```mermaid
+flowchart LR
+  records["原始记录"] --> filter["条件筛选"]
+  filter --> group["GROUP BY 聚合"]
+  group --> count["COUNT 总数"]
+  count --> page["LIMIT / OFFSET 分页"]
 ```
 
 不能使用下面这种不完整方式：
 
-```plaintext
-原始记录 → 先取前 50 条 → 内存聚合 → 分页
+```mermaid
+flowchart LR
+  records["原始记录"] --> limit["先取前 50 条"]
+  limit --> aggregate["内存聚合"]
+  aggregate --> page["分页"]
 ```
 
 因为这样会漏掉第 51 条之后的数据，结果不能代表真实账单。

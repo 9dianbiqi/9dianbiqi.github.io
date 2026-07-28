@@ -45,11 +45,23 @@ flowchart LR
 ````
 
 图表仅在当前页面包含 Mermaid 代码块时按需加载；渲染失败时会保留源码，便于阅读和排查。
-普通说明性文本请使用 `plaintext` 代码围栏。出于安全考虑，Mermaid 采用严格模式，不支持自定义回调和不安全链接。
+出于安全考虑，Mermaid 采用严格模式，不支持自定义回调和不安全链接。
+
+发布文章时按内容语义选择围栏：
+
+| 内容 | 围栏 |
+| --- | --- |
+| 流程、分支、状态转换、架构或拓扑 | `mermaid` |
+| 日志、输出、目录树、路径、配置、提示词或其他字面示例 | `plaintext` |
+| 可执行源码 | 准确语言，例如 `python`、`bash` 或 `json` |
+
+关系图与字面内容必须在 Markdown 源码阶段人工分类，不在浏览器运行时猜测或自动转换。
+禁止新增 `text` 围栏；真实目录树即使包含缩进或箭头，也应保留为 `plaintext`。
 
 本地自动化验证：
 
 ```bash
+npm run verify:article-visuals
 npm run verify:mermaid
 npm run build
 ```

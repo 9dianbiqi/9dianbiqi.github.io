@@ -1078,6 +1078,35 @@ h3 {
   line-height: 1.72;
 }
 
+.prose pre[data-language="plaintext"] {
+  position: relative;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  border-color: var(--line);
+  background:
+    linear-gradient(180deg, rgba(255, 253, 248, 0.98), rgba(248, 244, 234, 0.82)),
+    var(--surface) !important;
+  color: var(--ink) !important;
+  padding: 42px 20px 20px;
+  box-shadow: var(--shadow-card);
+  scrollbar-gutter: stable;
+}
+
+.prose pre[data-language="plaintext"]::before {
+  content: "PLAINTEXT";
+  position: absolute;
+  inset: 14px auto auto 20px;
+  color: var(--teal);
+  font: 700 0.7rem/1 "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
+  letter-spacing: 0.12em;
+}
+
+.prose pre[data-language="plaintext"] code,
+.prose pre[data-language="plaintext"] code span {
+  background: transparent !important;
+  color: inherit !important;
+}
+
 .prose .mermaid-diagram {
   width: 100%;
   max-width: 100%;
@@ -1127,6 +1156,14 @@ h3 {
 }
 
 @media (max-width: 640px) {
+  .prose pre[data-language="plaintext"] {
+    padding-inline: 14px;
+  }
+
+  .prose pre[data-language="plaintext"]::before {
+    left: 14px;
+  }
+
   .prose .mermaid-diagram__canvas {
     padding: 12px;
   }
