@@ -509,6 +509,7 @@ control_plane/
 │   ├── models.py
 │   └── services/permissions.py
 ├── accounts/
+│   ├── models.py
 │   └── services/tokens.py
 ├── audit/
 │   └── models.py
@@ -516,9 +517,32 @@ control_plane/
     └── permissions.py
 ```
 
-`tenants/models.py` 保持第五节的字段和关系不变：
+跨服务 ID 必须先统一。本文约定平台使用自定义 `User`，并让 `User.id` 与 `Tenant.id` 都是 UUID；因此 JWT 的 `sub` 和 `tenant_id` 是这两个 UUID 的字符串形式，FastAPI 可以无损解析成既有 `Principal.user_id: UUID` 与 `Principal.tenant_id: UUID`。不能让 Django 签发整数租户 ID，再期待 Pydantic 把它当成 UUID。
+
+`accounts/models.py` 显式定义用户主键，项目设置同时使用 `AUTH_USER_MODEL = "accounts.User"`：
 
 ```python
+from uuid import uuid4
+
+from django.contrib.auth.models import AbstractUser
+from django.db import models
+
+
+class User(AbstractUser):
+    id = models.UUIDField(
+        primary_key=True,
+        default=uuid4,
+        editable=False,
+    )
+```
+
+> **生产省略项：** 对已有整数用户主键的系统，改用 UUID 需要数据迁移、外键重建和兼容窗口，不能只修改模型代码；也可以选择另一套统一 ID 类型，但必须同时修改 Django 声明、JWT 契约和 FastAPI `Principal`，不能混用。
+
+`tenants/models.py` 保持第五节的业务字段和关系不变，并显式补上跨服务使用的 UUID 租户主键：
+
+```python
+from uuid import uuid4
+
 from django.conf import settings
 from django.contrib.auth.models import Permission
 from django.db import models
@@ -531,6 +555,11 @@ class DataScope(models.TextChoices):
 
 
 class Tenant(models.Model):
+    id = models.UUIDField(
+        primary_key=True,
+        default=uuid4,
+        editable=False,
+    )
     name = models.CharField(max_length=128)
     is_active = models.BooleanField(default=True)
 
@@ -637,13 +666,14 @@ class RolePermission(models.Model):
         ]
 ```
 
-> **生产省略项：** 骨架未展开时间戳、软删除、常用组合索引、审计字段，以及用数据库迁移实现的跨租户复合外键；这些不能用一个普通 `CheckConstraint` 草率替代。
+> **生产省略项：** 骨架未展开时间戳、软删除、常用组合索引、审计字段，以及用数据库迁移实现的跨租户复合外键；这些不能用一个普通 `CheckConstraint` 草率替代。已有整数 `Tenant.id` 的系统也必须先完成 UUID 数据与外键迁移。
 
 `tenants/services/permissions.py` 统一解析动作权限，并且只从真正授予该动作的角色中合并数据范围：
 
 ```python
 from dataclasses import dataclass
 from typing import Mapping
+from uuid import UUID
 
 from django.db.models import QuerySet
 
@@ -666,8 +696,8 @@ class ResolvedPermissions:
 @dataclass(frozen=True)
 class TenantPrincipal:
     membership_id: int
-    user_id: int
-    tenant_id: int
+    user_id: UUID
+    tenant_id: UUID
     department_id: int | None
     permissions: ResolvedPermissions
 
@@ -776,7 +806,7 @@ class TenantPermission(BasePermission):
 ```python
 from datetime import timedelta
 from typing import Protocol
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import jwt
 from django.conf import settings
@@ -786,7 +816,12 @@ from tenants.models import Membership, Role
 
 
 class PermissionVersionStore(Protocol):
-    def current(self, *, membership_id: int, tenant_id: int) -> int: ...
+    def current(
+        self,
+        *,
+        membership_id: int,
+        tenant_id: UUID,
+    ) -> int: ...
 
 
 permission_versions: PermissionVersionStore
@@ -795,6 +830,11 @@ permission_versions: PermissionVersionStore
 def issue_access_token(membership: Membership) -> str:
     if not membership.is_active or not membership.tenant.is_active:
         raise PermissionError("inactive membership or tenant")
+    if not isinstance(membership.user_id, UUID) or not isinstance(
+        membership.tenant_id,
+        UUID,
+    ):
+        raise TypeError("user_id and tenant_id must both be UUID values")
 
     roles = Role.objects.filter(
         tenant_id=membership.tenant_id,
@@ -825,9 +865,9 @@ def issue_access_token(membership: Membership) -> str:
     )
 ```
 
-> **生产省略项：** `PermissionVersionStore` 必须绑定持久化、原子递增且可审计的实现；私钥应来自密钥管理系统并定期轮换，而不是写入仓库或与 FastAPI 共享。实际签发还应检查用户禁用状态、限制时钟偏差并记录 `jti`。
+> **生产省略项：** `PermissionVersionStore` 必须绑定持久化、原子递增且可审计的实现；私钥应来自密钥管理系统并定期轮换，而不是写入仓库或与 FastAPI 共享。实际签发还应检查用户禁用状态、限制时钟偏差并记录 `jti`。上述类型守卫是合同防线，不代替数据库层的 UUID 主键迁移。
 
-执行面按身份、验签、依赖、仓储、服务和审计拆开：
+执行面按身份、验签、依赖、仓储、服务和审计拆开。下面的树列出本节示例直接导入的全部本地模块；框架配置、迁移和测试目录仍可按项目约定扩展：
 
 ```text
 ai_service/
@@ -836,11 +876,14 @@ ai_service/
 │   ├── jwt.py
 │   └── dependencies.py
 ├── agents/
+│   ├── models.py
 │   ├── router.py
 │   ├── repository.py
 │   └── service.py
-└── audit/
-    └── service.py
+├── audit/
+│   └── service.py
+├── db.py
+└── dependencies.py
 ```
 
 `auth/principal.py` 复用第十节的内部主体，不让路由接触原始 JWT：
@@ -995,6 +1038,57 @@ def require_permission(
 
 > **生产省略项：** 快照读取器应使用带工作负载身份或 mTLS 的 Django 内部接口，校验响应绑定关系，并把版本不一致、响应字段不匹配和无法安全刷新转换为失败关闭结果；不能退回本地角色名称判断。
 
+`db.py` 提供 ORM 基类和路由实际导入的会话依赖：
+
+```python
+from collections.abc import AsyncIterator
+
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+from sqlalchemy.orm import DeclarativeBase
+
+
+class Base(DeclarativeBase):
+    pass
+
+
+session_factory: async_sessionmaker[AsyncSession]
+
+
+async def get_session() -> AsyncIterator[AsyncSession]:
+    async with session_factory() as session:
+        yield session
+```
+
+> **生产省略项：** 启动代码必须用受控的异步数据库引擎初始化 `session_factory`，配置连接池、超时和凭据轮换，并在应用关闭时释放引擎。
+
+`agents/models.py` 让执行面资源沿用同一个 UUID 租户合同：
+
+```python
+from uuid import UUID, uuid4
+
+from sqlalchemy import Uuid
+from sqlalchemy.orm import Mapped, mapped_column
+
+from db import Base
+
+
+class Agent(Base):
+    __tablename__ = "agents"
+
+    id: Mapped[UUID] = mapped_column(
+        Uuid,
+        primary_key=True,
+        default=uuid4,
+    )
+    tenant_id: Mapped[UUID] = mapped_column(
+        Uuid,
+        nullable=False,
+        index=True,
+    )
+```
+
+> **生产省略项：** 实际 `Agent` 还需要名称、配置、状态、软删除、所有者/部门范围和必要索引；任何新增资源表都应让 `tenant_id` 与 Django `Tenant.id` 使用同一种 UUID 表示。
+
 `agents/repository.py` 在同一条查询中同时限制对象 ID 和可信租户 ID：
 
 ```python
@@ -1027,6 +1121,52 @@ async def get_tenant_agent(
 ```
 
 > **生产省略项：** 实际查询通常还要加入软删除、资源状态和逐动作数据范围；这些条件仍应留在仓储层的一次查询中，不能先按全局 ID 加载再事后比较。
+
+`agents/service.py` 提供路由实际导入的服务和依赖函数，把模型执行器留在可替换边界后：
+
+```python
+from typing import Protocol
+
+from agents.models import Agent
+from auth.principal import Principal
+
+
+class AgentExecutor(Protocol):
+    async def start(
+        self,
+        *,
+        agent: Agent,
+        prompt: str,
+        principal: Principal,
+    ) -> dict[str, str]: ...
+
+
+class AgentService:
+    def __init__(self, executor: AgentExecutor) -> None:
+        self.executor = executor
+
+    async def run(
+        self,
+        *,
+        agent: Agent,
+        prompt: str,
+        principal: Principal,
+    ) -> dict[str, str]:
+        return await self.executor.start(
+            agent=agent,
+            prompt=prompt,
+            principal=principal,
+        )
+
+
+agent_service: AgentService
+
+
+def get_agent_service() -> AgentService:
+    return agent_service
+```
+
+> **生产省略项：** 应用启动时必须注入真实 `AgentExecutor`；执行器还要实现超时、取消、流式断连、幂等、配额和敏感输入处理，不能在服务层重新解释租户 ID。
 
 `audit/service.py` 只记录可信主体字段；请求体里的租户字段不会进入审计事实：
 
@@ -1080,6 +1220,21 @@ class AuditService:
 ```
 
 > **生产省略项：** 审计存储应追加写、限制访问、定义保留期并对提示词和模型输出做敏感数据脱敏；关键操作还要设计审计写入失败时的失败关闭或可靠投递策略。
+
+顶层 `dependencies.py` 提供路由所导入的审计依赖，和 `agents/service.py` 的接线方式保持一致：
+
+```python
+from audit.service import AuditService
+
+
+audit_service: AuditService
+
+
+def get_audit_service() -> AuditService:
+    return audit_service
+```
+
+> **生产省略项：** 应用启动时必须用持久化 `AuditSink` 构造 `AuditService`；高风险动作应明确审计依赖不可用时是失败关闭还是通过可靠消息暂存，不能静默丢弃。
 
 `agents/router.py` 把动作权限、租户安全加载、执行服务和审计事件连成一条路径。请求模型故意不接受 `tenant_id`：
 
@@ -1189,7 +1344,7 @@ async def run_agent(
 | Superuser without active tenant | denied | `is_superuser` 不绕过有效 `Membership` |
 | Forged request tenant_id | ignored | 查询和审计均使用可信主体的租户，或因额外字段被拒绝 |
 
-还应补充：禁用用户、禁用租户、禁用成员、缺少 `kid`、未知 `kid`、过期令牌、签名被篡改、部门范围但成员无部门、同一成员由多个角色授予同一动作、不同租户存在同名角色、快照接口超时、审计写入失败、列表与导出接口、并发幂等键冲突和租户/用户限流。测试数据库中要故意构造一条跨租户脏 `MembershipRole`，证明 `resolve_permissions()` 的双重租户条件仍会拒绝它。
+还应补充：禁用用户、禁用租户、禁用成员、缺少 `kid`、未知 `kid`、过期令牌、签名被篡改、部门范围但成员无部门、同一成员由多个角色授予同一动作、不同租户存在同名角色、快照接口超时、审计写入失败、列表与导出接口、并发幂等键冲突和租户/用户限流。跨服务 ID 合同还要有一条正向测试，证明 Django 的 UUID `User.id` 与 `Tenant.id` 分别经 `sub` 和 `tenant_id` 签发后能构造 FastAPI `Principal`；再用整数或畸形 ID 做反向测试并断言 `401`。测试数据库中要故意构造一条跨租户脏 `MembershipRole`，证明 `resolve_permissions()` 的双重租户条件仍会拒绝它。
 
 测试还要验证“没有发生什么”：拒绝路径不应启动模型调用、不应创建异步任务、不应消耗其他租户配额，也不应把目标对象详情写入错误响应或普通日志。对于 `404`，可以断言跨租户和真实不存在返回相同的外部结构，但内部审计保留不同的可信拒绝原因。
 
