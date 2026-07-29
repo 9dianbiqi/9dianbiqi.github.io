@@ -259,7 +259,22 @@ class RolePermission(models.Model):
 
 `RolePermission` 复用的是权限记录和 codename 规范，不会自动把权限加入 `User.user_permissions` 或 `Group.permissions`，所以默认 `request.user.has_perm()` 并不知道租户角色。租户接口应由统一授权服务查询 `MembershipRole → RolePermission`；如果希望继续使用 `has_perm()` 风格，则要实现理解租户上下文的自定义认证后端，并对上下文来源和缓存边界做严格约定。
 
-数据库里的外键还不能单独保证 `MembershipRole.membership.tenant_id == MembershipRole.role.tenant_id`，也不能保证成员所选部门属于相同租户。应在领域服务、表单或 serializer 中验证这些跨表约束，并用测试覆盖；所有角色分配入口都必须走同一服务，不能在业务代码中随意创建中间表记录。
+即使写入入口已经校验租户一致性，授权读取也要防御历史脏数据、Admin、脚本或 fixture 绕过服务层的情况。权限查询必须同时绑定已验证的成员和可信租户：
+
+```python
+def permission_grants(principal, app_label, codename):
+    return RolePermission.objects.filter(
+        role__membership_roles__membership_id=principal.membership_id,
+        role__membership_roles__membership__tenant_id=principal.tenant_id,
+        role__tenant_id=principal.tenant_id,
+        permission__content_type__app_label=app_label,
+        permission__codename=codename,
+    )
+```
+
+这样，即使错误数据把租户 A 的 `Membership` 连到租户 B 的 `Role`，该角色也不会进入租户 A 的授权结果。`authorized_scope` 也只能从这个已收窄的 `permission_grants()` 查询集计算。
+
+数据库里的普通外键不能单独保证 `MembershipRole.membership.tenant_id == MembershipRole.role.tenant_id`，也不能保证成员所选部门属于相同租户。领域服务、表单和 serializer 仍应做写入时验证，但不能把它当成唯一防线。对支持复合外键的数据库，可以在 `MembershipRole` 冗余一个 `tenant_id`，为 `Membership(id, tenant_id)` 和 `Role(id, tenant_id)` 建唯一约束，再分别建立 `(membership_id, tenant_id)` 与 `(role_id, tenant_id)` 复合外键；Django 模型 API 或目标数据库不便直接表达时，可用数据库迁移或触发器实现。跨表一致性不能用一个只检查当前行的普通 `CheckConstraint` 代替。
 
 ### 数据范围怎样落到查询上
 
@@ -272,9 +287,13 @@ def scope_knowledge_bases(queryset, principal, authorized_scope):
     if authorized_scope == DataScope.TENANT:
         return queryset
     if authorized_scope == DataScope.DEPARTMENT:
+        if principal.department_id is None:
+            return queryset.none()
         return queryset.filter(department_id=principal.department_id)
     return queryset.filter(created_by_id=principal.user_id)
 ```
+
+`Membership.department` 允许为空，因此部门范围必须 fail closed：没有经过验证的 `department_id` 时返回空查询集，或者在进入作用域函数前直接拒绝请求。不能执行 `department_id=None`，因为 Django 会把它翻译为 `IS NULL`，从而让没有部门的成员看到租户内全部“未分部门”资源。
 
 `authorized_scope` 必须只从**实际授予本次动作权限**的角色计算。例如，一个角色授予“全租户查看”，另一个角色只授予“本人删除”，不能把查看范围错误套到删除动作上。若多个角色都授予同一动作，可以定义明确的合并规则，例如 `TENANT > DEPARTMENT > SELF` 取最宽范围；不要依赖数据库返回顺序，也不要把“有查看权限”推导成“默认可看全租户”。动作权限回答“能不能做”，数据范围回答“本次动作能对哪些记录做”，两者必须分别测试。
 
