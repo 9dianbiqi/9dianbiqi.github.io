@@ -62,7 +62,7 @@ Django 的优势也不应被夸大。它提供成熟的授权地基，但不会�
 
 ## 三、Django 内置权限体系解决了什么
 
-Django 把常见的身份与模型级权限概念做成了一套可迁移、可查询、可在后台管理的基础设施。[官方认证文档](https://docs.djangoproject.com/en/5.2/topics/auth/default/)给出的核心关系可以概括为：
+本文明确以 [Django 5.2 LTS](https://docs.djangoproject.com/en/5.2/releases/5.2/) 为目标版本；文中版本敏感链接均固定到 `/en/5.2/`，不把可能随最新稳定版切换的 `/stable/` 当作兼容基线。Django 把常见的身份与模型级权限概念做成了一套可迁移、可查询、可在后台管理的基础设施。[官方认证文档](https://docs.djangoproject.com/en/5.2/topics/auth/default/)给出的核心关系可以概括为：
 
 - `User` 表示登录主体。默认用户可以直接拥有权限，也可以通过一个或多个 `Group` 继承权限。
 - `Group` 是对用户进行分类并批量授予权限的通用容器。它适合表达全局角色，但本身没有租户归属。
@@ -75,11 +75,36 @@ Django 把常见的身份与模型级权限概念做成了一套可迁移、可�
 request.user.has_perm("knowledge.delete_knowledgebase")
 ```
 
+函数视图可以使用 `permission_required` 装饰器，类视图可以使用 `PermissionRequiredMixin`，把同一种模型动作检查接到 Django 原生视图入口：
+
+```python
+from django.contrib.auth.decorators import permission_required
+from django.contrib.auth.mixins import PermissionRequiredMixin
+from django.views import View
+
+
+@permission_required(
+    "knowledge.delete_knowledgebase",
+    raise_exception=True,
+)
+def delete_knowledge_base(request, knowledge_base_id):
+    ...
+
+
+class KnowledgeBaseDeleteView(PermissionRequiredMixin, View):
+    permission_required = "knowledge.delete_knowledgebase"
+```
+
+这两个入口仍然只会向已配置的认证后端询问动作权限；它们不会建立可信租户上下文，也不会自动过滤对象。多租户 HTML 视图仍要复用租户授权服务和租户安全 queryset；本文后面的 DRF 入口则使用 `TenantPermission`。装饰器或 mixin 都不能替代资源查询中的 `tenant_id` 与数据范围条件。
+
 `has_perm()` 会交给配置的认证后端求值，既可以利用用户直接权限，也可以利用组权限。`is_superuser` 表示该用户在默认语义下无需逐项分配便被视为拥有全部权限；它是高风险平台开关，不应被当成租户角色。`is_staff` 只是默认 Django Admin 入口的必要条件，而非充分条件：默认 [`AdminSite.has_permission()`](https://docs.djangoproject.com/en/5.2/ref/contrib/admin/#django.contrib.admin.AdminSite.has_permission) 同时要求 `is_active=True` 和 `is_staff=True`；它也不等于“某个租户的管理员”。两者都是 `User` 属性，而不是本文的租户授权模型。
 
 Django Admin 会使用模型权限控制查看、添加、修改和删除入口，这使权限配置和内部运营界面天然衔接。使用 Django REST Framework 时，还可以继承 [`BasePermission`](https://www.django-rest-framework.org/api-guide/permissions/) 实现：
 
 ```python
+from rest_framework.permissions import BasePermission
+
+
 class KnowledgeBasePermission(BasePermission):
     def has_permission(self, request, view):
         ...
@@ -134,6 +159,7 @@ erDiagram
 ```python
 from django.conf import settings
 from django.contrib.auth.models import Permission
+from django.core.exceptions import ValidationError
 from django.db import models
 
 
@@ -177,6 +203,16 @@ class Membership(models.Model):
     )
     is_active = models.BooleanField(default=True)
 
+    def clean(self):
+        super().clean()
+        if self.department_id and not Department.objects.filter(
+            id=self.department_id,
+            tenant_id=self.tenant_id,
+        ).exists():
+            raise ValidationError(
+                {"department": "department must belong to membership tenant"}
+            )
+
     class Meta:
         constraints = [
             models.UniqueConstraint(
@@ -204,6 +240,10 @@ class Role(models.Model):
             models.UniqueConstraint(
                 fields=["tenant", "name"],
                 name="uniq_role_tenant_name",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(data_scope__in=DataScope.values),
+                name="role_data_scope_valid",
             ),
         ]
 
@@ -272,37 +312,54 @@ def permission_grants(principal, app_label, codename):
     )
 ```
 
-这样，即使错误数据把租户 A 的 `Membership` 连到租户 B 的 `Role`，该角色也不会进入租户 A 的授权结果。`authorized_scope` 也只能从这个已收窄的 `permission_grants()` 查询集计算。
+这样，即使错误数据把租户 A 的 `Membership` 连到租户 B 的 `Role`，该角色也不会进入租户 A 的授权结果。`authorized_scopes` 也只能从这个已收窄的 `permission_grants()` 查询集计算。
 
-数据库里的普通外键不能单独保证 `MembershipRole.membership.tenant_id == MembershipRole.role.tenant_id`，也不能保证成员所选部门属于相同租户。领域服务、表单和 serializer 仍应做写入时验证，但不能把它当成唯一防线。对支持复合外键的数据库，可以在 `MembershipRole` 冗余一个 `tenant_id`，为 `Membership(id, tenant_id)` 和 `Role(id, tenant_id)` 建唯一约束，再分别建立 `(membership_id, tenant_id)` 与 `(role_id, tenant_id)` 复合外键；Django 模型 API 或目标数据库不便直接表达时，可用数据库迁移或触发器实现。跨表一致性不能用一个只检查当前行的普通 `CheckConstraint` 代替。
+数据库里的普通外键不能单独保证 `MembershipRole.membership.tenant_id == MembershipRole.role.tenant_id`，也不能保证 `Membership.department.tenant_id == Membership.tenant_id` 或业务资源的 `department.tenant_id == resource.tenant_id`。上面的 `Membership.clean()` 给表单、Admin 和显式调用 `full_clean()` 的领域服务一条清楚的写入校验，但 `save()` 不会自动调用 `full_clean()`，serializer 和批量写入路径也必须主动复用同一规则。
+
+数据库仍应承担最终不变量。以 PostgreSQL 为例，可以为 `Department(id, tenant_id)`、`Membership(id, tenant_id)` 和 `Role(id, tenant_id)` 建复合唯一键，在 `Membership` 与每个带部门的资源表上用 `(department_id, tenant_id)` 复合外键指向 `Department`；`MembershipRole` 则冗余 `tenant_id`，分别用 `(membership_id, tenant_id)` 与 `(role_id, tenant_id)` 复合外键连接两侧。Django 模型 API 或目标数据库不便直接表达时，应通过数据库迁移或触发器实现。跨表一致性不能用一个只检查当前行的普通 `CheckConstraint` 代替。
 
 ### 数据范围怎样落到查询上
 
 假设 `KnowledgeBase` 至少包含 `tenant_id`、`created_by_id` 和 `department_id`。动作权限检查通过后，再根据当前成员拥有角色中的有效数据范围构造查询集：
 
 ```python
-def scope_knowledge_bases(queryset, principal, authorized_scope):
+from django.db.models import Q
+
+
+def scope_knowledge_bases(queryset, principal, authorized_scopes):
     queryset = queryset.filter(tenant_id=principal.tenant_id)
 
-    if authorized_scope == DataScope.TENANT:
+    if DataScope.TENANT in authorized_scopes:
         return queryset
-    if authorized_scope == DataScope.DEPARTMENT:
-        if principal.department_id is None:
-            return queryset.none()
-        return queryset.filter(department_id=principal.department_id)
-    return queryset.filter(created_by_id=principal.user_id)
+
+    predicate = None
+    if (
+        DataScope.DEPARTMENT in authorized_scopes
+        and principal.department_id is not None
+    ):
+        predicate = Q(department_id=principal.department_id)
+    if DataScope.SELF in authorized_scopes:
+        own_records = Q(created_by_id=principal.user_id)
+        predicate = (
+            own_records
+            if predicate is None
+            else predicate | own_records
+        )
+    if predicate is None:
+        return queryset.none()
+    return queryset.filter(predicate)
 ```
 
-`Membership.department` 允许为空，因此部门范围必须 fail closed：没有经过验证的 `department_id` 时返回空查询集，或者在进入作用域函数前直接拒绝请求。不能执行 `department_id=None`，因为 Django 会把它翻译为 `IS NULL`，从而让没有部门的成员看到租户内全部“未分部门”资源。
+`Membership.department` 允许为空，因此 `DEPARTMENT` 谓词必须 fail closed：没有经过验证的 `department_id` 时不能添加部门条件，更不能执行 `department_id=None`，因为 Django 会把它翻译为 `IS NULL`，从而让没有部门的成员看到租户内全部“未分部门”资源。如果同一动作还由另一个角色授予 `SELF`，本人谓词仍可独立生效；没有任何有效谓词时才返回空查询集。
 
-`authorized_scope` 必须只从**实际授予本次动作权限**的角色计算。例如，一个角色授予“全租户查看”，另一个角色只授予“本人删除”，不能把查看范围错误套到删除动作上。若多个角色都授予同一动作，可以定义明确的合并规则，例如 `TENANT > DEPARTMENT > SELF` 取最宽范围；不要依赖数据库返回顺序，也不要把“有查看权限”推导成“默认可看全租户”。动作权限回答“能不能做”，数据范围回答“本次动作能对哪些记录做”，两者必须分别测试。
+`authorized_scopes` 必须只从**实际授予本次动作权限**的角色计算。例如，一个角色授予“全租户查看”，另一个角色只授予“本人删除”，不能把查看范围错误套到删除动作上。多个角色授予同一动作时要保留全部范围：`TENANT` 可以直接短路为全租户；`DEPARTMENT` 与 `SELF` 不是天然包含关系，必须把两者的查询谓词用 OR 组合。不要依赖数据库返回顺序，也不要把“有查看权限”推导成“默认可看全租户”。动作权限回答“能不能做”，数据范围回答“本次动作能对哪些记录做”，两者必须分别测试。
 
 ## 六、每次请求都要通过三道权限门
 
 一个安全的详情、修改或删除请求，应严格按下面的顺序通过三道门：
 
 1. **验证已认证身份**：从服务端会话或已验证签名的令牌得到 `User`；匿名、禁用或令牌失效立即拒绝。
-2. **解析有效成员关系和动作权限**：根据可信的当前租户上下文加载 `Membership(user, tenant, is_active=True)`，聚合该成员的租户内角色，检查所需 Django `Permission`，并从授予该动作的角色计算 `authorized_scope`。
+2. **解析有效成员关系和动作权限**：根据可信的当前租户上下文加载 `Membership(user, tenant, is_active=True)`，聚合该成员的租户内角色，检查所需 Django `Permission`，并从授予该动作的角色计算 `authorized_scopes`。
 3. **通过租户与数据范围过滤加载资源**：先构造已按 `tenant_id` 和 `DataScope` 收窄的 queryset，再从中取目标对象。
 
 顺序很重要：先建立可信 `principal`，再谈资源。下面是必须拒绝的写法：
@@ -329,7 +386,7 @@ KnowledgeBase.objects.get(
 queryset = scope_knowledge_bases(
     KnowledgeBase.objects.all(),
     principal,
-    authorized_scope,
+    authorized_scopes,
 )
 knowledge_base = queryset.get(id=knowledge_base_id)
 ```
@@ -454,7 +511,7 @@ async def get_tenant_agent(
 
 `require_permission()` 应依次完成令牌提取、非对称签名与标准声明验证、声明类型转换、`permission_version` 有效性检查，以及角色到动作权限的展开。任一步失败都不产生 `Principal`。角色名称只是权限快照的输入，不应让每个路由自行写 `if "admin" in roles`；统一依赖才能保证权限 codename、缓存和失效逻辑一致。
 
-角色到权限的展开结果也不能由 FastAPI 本地配置文件自行定义。Django 应提供一个内部、只读、带版本的权限快照端点：它根据当前有效 `Membership` 和租户内 `RolePermission` 计算权限 codename，并返回与 `tenant_id`、`sub`、角色集合和 `permission_version` 绑定的快照。FastAPI 缓存未命中或遇到未知版本时，只能向这个 Django 权威端点补取；返回版本与已验证令牌不一致、快照字段不匹配、请求超时或刷新失败时，都必须 fail closed，拒绝本次请求并要求重新取得令牌，不能沿用旧映射或退回本地默认角色。
+角色到权限的展开结果也不能由 FastAPI 本地配置文件自行定义。Django 应提供一个内部、只读、带版本的权限快照端点：它根据当前有效 `Membership` 和租户内 `RolePermission` 计算权限 codename，并返回与 `tenant_id`、`sub`、角色集合和 `permission_version` 绑定的快照。FastAPI 调用该端点时必须转交本次请求的原始签名 JWT，或者 Django 签发且可反查的不透明授权句柄；Django 从这份终端用户证明独立推导主体与租户，FastAPI 同时提交的 `Principal` 只能用于响应绑定比对，不能成为 Django 的授权事实。缓存未命中或遇到未知版本时，只能向这个 Django 权威端点补取；返回版本与已验证令牌不一致或证明失效时返回 `401`，快照服务超时或不可用时返回 `503`，两者都必须 fail closed，不能沿用旧映射或退回本地默认角色。
 
 接口最终还要通过租户安全的资源加载器把“能执行动作”和“能操作这个对象”连接起来：
 
@@ -488,14 +545,14 @@ async def run_agent(
 对大多数从 Django 单体演进而来的企业 AI 平台，推荐组合而不是三选一：
 
 1. Django 签发**短期 JWT**，缩短旧权限自然存活的窗口。
-2. FastAPI **缓存角色到权限的展开结果**，缓存键至少包含租户、角色集合和 `permission_version`，不能让不同租户共享同名角色的结果；缓存内容只能来自 Django 的版本化权限快照端点。
-3. 每次角色、权限、成员状态或相关数据范围发生变化时，Django 递增对应授权主体的 **`permission_version`**；FastAPI 发现版本已失效时拒绝旧令牌并要求重新签发。
+2. FastAPI **缓存角色到权限的展开结果**，缓存键至少包含用户、租户、角色集合和 `permission_version`，不能让不同主体或租户共享同名角色的结果；缓存内容只能来自 Django 的版本化权限快照端点。
+3. 每次角色、权限、成员状态或相关数据范围发生变化时，Django 原子递增授权主体 `(user_id, tenant_id)` 的 **`permission_version`**。这是一条持久化、单调递增且永不重置的 generation：成员退出、删除后重新加入同一租户，也不能复用或重建为较小值。FastAPI 以同一 `(user_id, tenant_id)` 键比较当前 generation，发现版本已失效时拒绝旧令牌并要求重新签发。
 4. 对高风险动作执行**实时 Django 回查**，并设置明确的工作负载认证、超时、失败关闭和审计策略；授权服务不可用时不能默认放行。
 5. 只有当多服务策略重复、跨语言规则和策略发布复杂度已经被真实业务证明后，再引入**独立策略服务**，不要为假设中的规模预付治理成本。
 
-这套组合让绝大多数 AI 执行请求走本地验签和缓存路径，同时把权限撤销窗口控制在短期令牌与版本校验之内。需要强调的是，`permission_version` 必须有 FastAPI 可验证的当前版本来源，例如短 TTL 缓存配合 Django 事件失效或轻量版本查询；如果只是把版本号写进 JWT 却从不比较，它就没有撤销价值。
+这套组合让绝大多数 AI 执行请求走本地验签和缓存路径，同时把权限撤销窗口控制在短期令牌与版本校验之内。需要强调的是，`permission_version` 必须有 FastAPI 可验证的当前版本来源，例如短 TTL 缓存配合 Django 事件失效或轻量版本查询；签发端与验证端必须使用同一个永不重置的 `(user_id, tenant_id)` 键。如果只是把版本号写进 JWT 却从不比较，或者成员重建后把 generation 清零，它就没有撤销价值。
 
-完整的缓存补给路径应是：命中相同租户、角色集合与版本的可信缓存时直接使用；缓存未命中或版本未知时，FastAPI 请求 Django 拥有的版本化权限快照端点；Django 从数据库中的有效成员关系和角色授权重新计算快照；FastAPI 校验响应中的主体、租户、角色集合与版本均和已验证令牌一致后才写入缓存。Django 也可以发布经过认证的失效事件来主动清除旧缓存，但事件只负责加速失效，不能成为另一套可编辑权限模型。快照获取失败、版本不一致、响应无法验证或事件顺序存在缺口时一律拒绝请求，不能把“暂时取不到权限”解释成“沿用旧权限”。
+完整的缓存补给路径应是：命中相同用户、租户、角色集合与版本的可信缓存时直接使用；缓存未命中或版本未知时，FastAPI 把原始签名 JWT 或 Django 签发的不透明句柄交给 Django 的版本化权限快照端点；Django 从证明中独立建立主体，再从数据库中的有效成员关系和角色授权重新计算快照；FastAPI 校验响应中的主体、租户、角色集合与版本均和本地已验证令牌一致后才写入缓存。Django 也可以发布经过认证的失效事件来主动清除旧缓存，但事件只负责加速失效，不能成为另一套可编辑权限模型。证明失效或版本不一致是 `401`；快照获取、JWKS 或当前版本来源不可用是 `503`。两类失败都不能把“暂时取不到权限”解释成“沿用旧权限”。
 
 权限快照端点和高风险回查端点都属于内部授权 API，必须使用上述工作负载身份、mTLS 或窄范围服务凭据认证调用方。服务认证只证明“这是获准调用该接口的 FastAPI”，不证明它提交的用户字段正确；Django 仍要独立验签原始 JWT，或依据 Django 自己签发并可反查的不透明授权句柄重新加载当前成员关系，绝不直接把调用方构造的 `Principal` 当作授权事实。
 
@@ -545,6 +602,7 @@ from uuid import uuid4
 
 from django.conf import settings
 from django.contrib.auth.models import Permission
+from django.core.exceptions import ValidationError
 from django.db import models
 
 
@@ -593,6 +651,16 @@ class Membership(models.Model):
     )
     is_active = models.BooleanField(default=True)
 
+    def clean(self):
+        super().clean()
+        if self.department_id and not Department.objects.filter(
+            id=self.department_id,
+            tenant_id=self.tenant_id,
+        ).exists():
+            raise ValidationError(
+                {"department": "department must belong to membership tenant"}
+            )
+
     class Meta:
         constraints = [
             models.UniqueConstraint(
@@ -620,6 +688,10 @@ class Role(models.Model):
             models.UniqueConstraint(
                 fields=["tenant", "name"],
                 name="uniq_role_tenant_name",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(data_scope__in=DataScope.values),
+                name="role_data_scope_valid",
             ),
         ]
 
@@ -666,31 +738,34 @@ class RolePermission(models.Model):
         ]
 ```
 
-> **生产省略项：** 骨架未展开时间戳、软删除、常用组合索引、审计字段，以及用数据库迁移实现的跨租户复合外键；这些不能用一个普通 `CheckConstraint` 草率替代。已有整数 `Tenant.id` 的系统也必须先完成 UUID 数据与外键迁移。
+> **生产省略项：** 骨架未展开时间戳、软删除、常用组合索引和审计字段。`Role.data_scope` 已用数据库 `CheckConstraint` 限定枚举值；跨表租户一致性则要用数据库迁移建立复合外键或触发器：`Membership(department_id, tenant_id)` 与业务资源的 `(department_id, tenant_id)` 都指向 `Department(id, tenant_id)`，`MembershipRole` 的两侧也绑定同一个租户。这些不能用普通行级 `CheckConstraint` 草率替代。已有整数 `Tenant.id` 的系统还必须先完成 UUID 数据与外键迁移。
 
 `tenants/services/permissions.py` 统一解析动作权限，并且只从真正授予该动作的角色中合并数据范围：
 
 ```python
+import logging
 from dataclasses import dataclass
 from typing import Mapping
 from uuid import UUID
 
-from django.db.models import QuerySet
+from django.db.models import Q, QuerySet
 
-from tenants.models import DataScope, Membership, RolePermission, Tenant
+from tenants.models import (
+    DataScope,
+    Department,
+    Membership,
+    RolePermission,
+    Tenant,
+)
 
 
-SCOPE_RANK = {
-    DataScope.SELF: 1,
-    DataScope.DEPARTMENT: 2,
-    DataScope.TENANT: 3,
-}
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
 class ResolvedPermissions:
     codes: frozenset[str]
-    scope_by_code: Mapping[str, str]
+    scopes_by_code: Mapping[str, frozenset[str]]
 
 
 @dataclass(frozen=True)
@@ -708,6 +783,14 @@ def resolve_permissions(membership: Membership) -> ResolvedPermissions:
         is_active=True,
     ).exists():
         return ResolvedPermissions(frozenset(), {})
+    if membership.department_id and not Department.objects.filter(
+        id=membership.department_id,
+        tenant_id=membership.tenant_id,
+    ).exists():
+        logger.error(
+            "Ignoring membership whose department belongs to another tenant"
+        )
+        return ResolvedPermissions(frozenset(), {})
 
     grants = RolePermission.objects.filter(
         role__membership_roles__membership_id=membership.id,
@@ -719,13 +802,26 @@ def resolve_permissions(membership: Membership) -> ResolvedPermissions:
         "role__data_scope",
     )
 
-    scope_by_code: dict[str, str] = {}
+    scope_sets: dict[str, set[str]] = {}
     for app_label, codename, data_scope in grants:
         code = f"{app_label}.{codename}"
-        current = scope_by_code.get(code)
-        if current is None or SCOPE_RANK[data_scope] > SCOPE_RANK[current]:
-            scope_by_code[code] = data_scope
-    return ResolvedPermissions(frozenset(scope_by_code), scope_by_code)
+        if data_scope not in DataScope.values:
+            logger.error(
+                "Ignoring unknown DataScope value %r for %s",
+                data_scope,
+                code,
+            )
+            continue
+        scope_sets.setdefault(code, set()).add(data_scope)
+
+    scopes_by_code = {
+        code: frozenset(scopes)
+        for code, scopes in scope_sets.items()
+    }
+    return ResolvedPermissions(
+        frozenset(scopes_by_code),
+        scopes_by_code,
+    )
 
 
 def tenant_safe_queryset(
@@ -735,24 +831,38 @@ def tenant_safe_queryset(
     permission_code: str,
 ) -> QuerySet:
     queryset = queryset.filter(tenant_id=principal.tenant_id)
-    scope = principal.permissions.scope_by_code.get(permission_code)
+    scopes = principal.permissions.scopes_by_code.get(
+        permission_code,
+        frozenset(),
+    )
 
-    if scope == DataScope.TENANT:
+    if DataScope.TENANT in scopes:
         return queryset
-    if scope == DataScope.DEPARTMENT:
-        if principal.department_id is None:
-            return queryset.none()
-        return queryset.filter(department_id=principal.department_id)
-    if scope == DataScope.SELF:
-        return queryset.filter(created_by_id=principal.user_id)
-    return queryset.none()
+
+    predicate = None
+    if (
+        DataScope.DEPARTMENT in scopes
+        and principal.department_id is not None
+    ):
+        predicate = Q(department_id=principal.department_id)
+    if DataScope.SELF in scopes:
+        own_records = Q(created_by_id=principal.user_id)
+        predicate = (
+            own_records
+            if predicate is None
+            else predicate | own_records
+        )
+    if predicate is None:
+        return queryset.none()
+    return queryset.filter(predicate)
 ```
 
-> **生产省略项：** 应为权限解析增加以 `membership_id + tenant_id + permission_version` 为键的短期缓存，并在授权变更事务提交后失效；缓存未命中只能回源，不能默认放行。不同资源若没有 `department_id` 或 `created_by_id`，应提供显式的资源作用域适配器。
+> **生产省略项：** 应为权限解析增加以 `user_id + tenant_id + permission_version` 为键的短期缓存，并在授权变更事务提交后失效；缓存未命中只能回源，不能默认放行。解析器对未知 `DataScope` 记录错误并跳过该 grant，查询器对没有任何已知范围的动作返回空集。不同资源若没有 `department_id` 或 `created_by_id`，应提供显式的资源作用域适配器。
 
 `api/permissions.py` 把 DRF 入口接到同一解析服务。这里的 `request.tenant` 必须由服务端根据会话、主机名或验签后的令牌建立，不能从请求体复制：
 
 ```python
+from django.db.models import Q
 from rest_framework.permissions import BasePermission
 
 from tenants.models import Membership
@@ -773,14 +883,18 @@ class TenantPermission(BasePermission):
             return False
 
         try:
-            membership = Membership.objects.select_related(
-                "tenant",
-                "department",
-            ).get(
-                user=request.user,
-                tenant=tenant,
-                is_active=True,
-                tenant__is_active=True,
+            membership = (
+                Membership.objects.select_related("tenant", "department")
+                .filter(
+                    Q(department__isnull=True)
+                    | Q(department__tenant=tenant)
+                )
+                .get(
+                    user=request.user,
+                    tenant=tenant,
+                    is_active=True,
+                    tenant__is_active=True,
+                )
             )
         except Membership.DoesNotExist:
             return False
@@ -799,7 +913,46 @@ class TenantPermission(BasePermission):
         return True
 ```
 
-> **生产省略项：** 视图仍须用 `tenant_safe_queryset()` 加载对象、列表、导出与聚合数据；`has_permission()` 只判断入口动作，不能代替对象范围过滤。Django `is_superuser` 也没有隐式跨租户通行权，未找到当前租户的有效 `Membership` 就会拒绝。
+> **生产省略项：** 入口查询与 `resolve_permissions()` 都会拒绝跨租户部门；写入端仍要执行模型/serializer 校验，并用前述复合外键守住数据库。视图还须用 `tenant_safe_queryset()` 加载对象、列表、导出与聚合数据；`has_permission()` 只判断入口动作，不能代替对象范围过滤。Django `is_superuser` 也没有隐式跨租户通行权，未找到当前租户的有效 `Membership` 就会拒绝。
+
+下面的 DRF 删除端点把三道门连成一条真实路径：配置的认证类先建立 `request.user` 和服务端 `request.tenant`，`TenantPermission` 检查 `required_permission` 并写入可信主体，最后只能从 `tenant_safe_queryset()` 删除对象：
+
+```python
+from uuid import UUID
+
+from django.shortcuts import get_object_or_404
+from rest_framework import status
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
+from api.permissions import TenantPermission
+from knowledge.models import KnowledgeBase
+from tenants.services.permissions import tenant_safe_queryset
+
+
+class KnowledgeBaseDeleteView(APIView):
+    permission_classes = [TenantPermission]
+    required_permission = "knowledge.delete_knowledgebase"
+
+    def delete(
+        self,
+        request,
+        knowledge_base_id: UUID,
+    ) -> Response:
+        queryset = tenant_safe_queryset(
+            KnowledgeBase.objects.all(),
+            principal=request.tenant_principal,
+            permission_code=self.required_permission,
+        )
+        knowledge_base = get_object_or_404(
+            queryset,
+            id=knowledge_base_id,
+        )
+        knowledge_base.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+```
+
+这条路径不会先按全局 ID 加载对象。对象不存在、属于其他租户，或者只落在未获授权的数据范围内，都会在同一个作用域查询中变成 `404`；动作权限失败则在删除查询和副作用发生前返回 `403`。
 
 `accounts/services/tokens.py` 只在成员和租户均有效时签发短期令牌。私钥仅留在控制面，角色查询也重复约束成员租户和角色租户：
 
@@ -819,7 +972,7 @@ class PermissionVersionStore(Protocol):
     def current(
         self,
         *,
-        membership_id: int,
+        user_id: UUID,
         tenant_id: UUID,
     ) -> int: ...
 
@@ -848,7 +1001,7 @@ def issue_access_token(membership: Membership) -> str:
         "tenant_id": str(membership.tenant_id),
         "roles": sorted(set(roles)),
         "permission_version": permission_versions.current(
-            membership_id=membership.id,
+            user_id=membership.user_id,
             tenant_id=membership.tenant_id,
         ),
         "iss": "django-control-plane",
@@ -865,13 +1018,14 @@ def issue_access_token(membership: Membership) -> str:
     )
 ```
 
-> **生产省略项：** `PermissionVersionStore` 必须绑定持久化、原子递增且可审计的实现；私钥应来自密钥管理系统并定期轮换，而不是写入仓库或与 FastAPI 共享。实际签发还应检查用户禁用状态、限制时钟偏差并记录 `jti`。上述类型守卫是合同防线，不代替数据库层的 UUID 主键迁移。
+> **生产省略项：** `PermissionVersionStore` 必须绑定持久化、原子递增且可审计的实现，以 `(user_id, tenant_id)` 为唯一键并保留 tombstone；删除、禁用或重建 `Membership` 都不得删除、回绕或重置该 generation。私钥应来自密钥管理系统并定期轮换，而不是写入仓库或与 FastAPI 共享。实际签发还应检查用户禁用状态、限制时钟偏差并记录 `jti`。上述类型守卫是合同防线，不代替数据库层的 UUID 主键迁移。
 
 执行面按身份、验签、依赖、仓储、服务和审计拆开。下面的树列出本节示例直接导入的全部本地模块；框架配置、迁移和测试目录仍可按项目约定扩展：
 
 ```plaintext
 ai_service/
 ├── auth/
+│   ├── errors.py
 │   ├── principal.py
 │   ├── jwt.py
 │   └── dependencies.py
@@ -886,7 +1040,25 @@ ai_service/
 └── dependencies.py
 ```
 
-`auth/principal.py` 复用第十节的内部主体，不让路由接触原始 JWT：
+`auth/errors.py` 先把“终端用户证明无效”和“授权基础设施暂时不可用”定义为不同异常，避免把所有失败都误报成 `401`：
+
+```python
+class InvalidIdentityError(Exception):
+    pass
+
+
+class AuthorizationServiceUnavailable(Exception):
+    def __init__(
+        self,
+        message: str,
+        *,
+        retry_after_seconds: int | None = None,
+    ) -> None:
+        super().__init__(message)
+        self.retry_after_seconds = retry_after_seconds
+```
+
+`auth/principal.py` 复用第十节的内部主体。路由不直接解析原始 JWT，但授权依赖会把原始证明转交给 Django 的快照或高风险回查接口：
 
 ```python
 from uuid import UUID
@@ -916,14 +1088,22 @@ import jwt
 from jwt import InvalidTokenError
 from pydantic import ValidationError
 
+from auth.errors import (
+    AuthorizationServiceUnavailable,
+    InvalidIdentityError,
+)
 from auth.principal import Principal
 
 
 class SigningKeyResolver(Protocol):
+    """Unknown kid is invalid identity; JWKS outage is unavailable."""
+
     def resolve(self, kid: str) -> str: ...
 
 
 class PermissionVersionReader(Protocol):
+    """State uncertainty is unavailable, not a stale-token answer."""
+
     def is_current(
         self,
         *,
@@ -975,24 +1155,36 @@ def decode_access_token(token: str) -> Principal:
             tenant_id=principal.tenant_id,
             version=principal.permission_version,
         ):
-            raise InvalidTokenError("stale permission version")
+            raise InvalidIdentityError("stale permission version")
         return principal
-    except (KeyError, TypeError, ValueError, ValidationError) as exc:
-        raise InvalidTokenError("invalid access token") from exc
+    except (InvalidIdentityError, AuthorizationServiceUnavailable):
+        raise
+    except (
+        InvalidTokenError,
+        KeyError,
+        TypeError,
+        ValueError,
+        ValidationError,
+    ) as exc:
+        raise InvalidIdentityError("invalid access token") from exc
 ```
 
-> **生产省略项：** `SigningKeyResolver` 应从受信任的 JWKS 地址读取并缓存公钥，拒绝未知 `kid`；`PermissionVersionReader` 应使用短 TTL 缓存、认证过的失效事件或轻量权威查询，并在超时或状态未知时失败关闭。
+> **生产省略项：** `SigningKeyResolver` 应从受信任的 JWKS 地址读取并缓存公钥：令牌缺少/使用未知 `kid` 时抛出 `InvalidIdentityError`，可信 JWKS 暂时取不到时抛出 `AuthorizationServiceUnavailable`。`PermissionVersionReader` 应使用短 TTL 缓存、认证过的失效事件或轻量权威查询；明确比较为旧 generation 是 `InvalidIdentityError`，超时或当前状态未知则是 `AuthorizationServiceUnavailable`。两种情况都失败关闭，但 HTTP 语义不同。
 
-`auth/dependencies.py` 从 Django 的版本化快照取得动作权限。缓存实现必须核对主体、租户、角色集合和版本四者：
+`auth/dependencies.py` 从 Django 的版本化快照取得动作权限。读取器同时展示高风险回查契约；两种调用都必须携带原始终端用户证明，`expected_principal` 只用于 FastAPI 对响应做绑定检查：
 
 ```python
 from collections.abc import Awaitable, Callable
 from typing import Protocol
+from uuid import UUID
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
-from jwt import InvalidTokenError
 
+from auth.errors import (
+    AuthorizationServiceUnavailable,
+    InvalidIdentityError,
+)
 from auth.jwt import decode_access_token
 from auth.principal import Principal
 
@@ -1000,14 +1192,26 @@ from auth.principal import Principal
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token")
 
 
-class PermissionSnapshotReader(Protocol):
+class DjangoAuthorizationReader(Protocol):
     async def permissions_for(
         self,
-        principal: Principal,
+        *,
+        end_user_proof: str,
+        expected_principal: Principal,
     ) -> frozenset[str]: ...
 
+    async def authorize_high_risk(
+        self,
+        *,
+        end_user_proof: str,
+        expected_principal: Principal,
+        code: str,
+        resource_type: str,
+        resource_id: UUID,
+    ) -> bool: ...
 
-permission_snapshots: PermissionSnapshotReader
+
+django_authorization: DjangoAuthorizationReader
 
 
 def require_permission(
@@ -1018,12 +1222,26 @@ def require_permission(
     ) -> Principal:
         try:
             principal = decode_access_token(token)
-            permissions = await permission_snapshots.permissions_for(principal)
-        except InvalidTokenError as exc:
+            permissions = await django_authorization.permissions_for(
+                end_user_proof=token,
+                expected_principal=principal,
+            )
+        except InvalidIdentityError as exc:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="invalid or stale access token",
                 headers={"WWW-Authenticate": "Bearer"},
+            ) from exc
+        except AuthorizationServiceUnavailable as exc:
+            headers = None
+            if exc.retry_after_seconds is not None:
+                headers = {
+                    "Retry-After": str(exc.retry_after_seconds),
+                }
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="authorization service unavailable",
+                headers=headers,
             ) from exc
 
         if code not in permissions:
@@ -1036,7 +1254,7 @@ def require_permission(
     return dependency
 ```
 
-> **生产省略项：** 快照读取器应使用带工作负载身份或 mTLS 的 Django 内部接口，校验响应绑定关系，并把版本不一致、响应字段不匹配和无法安全刷新转换为失败关闭结果；不能退回本地角色名称判断。
+> **生产省略项：** `permissions_for()` 与 `authorize_high_risk()` 都应使用带工作负载身份或 mTLS 的 Django 内部接口，同时提交原始签名 JWT；也可以提交 Django 签发且可反查的一次性不透明句柄，但绝不能只提交调用方重建的 `Principal`。Django 必须独立验证证明、加载当前成员关系并推导主体；FastAPI 再校验响应与 `expected_principal` 的绑定关系。证明无效、已撤销、generation 过期或绑定不匹配抛出 `InvalidIdentityError`，映射为 `401`；JWKS、当前 generation、快照或权威回查服务超时/不可用抛出 `AuthorizationServiceUnavailable`，映射为 `503`，可携带 `Retry-After`。高风险接口返回 `False` 才是已认证主体缺权限的 `403`；任何基础设施故障都不能退回本地角色判断。
 
 `db.py` 提供 ORM 基类和路由实际导入的会话依赖：
 
@@ -1312,8 +1530,9 @@ async def run_agent(
 | `404` | absent resource or concealed tenant/data-scope mismatch |
 | `409` | resource-version or idempotency conflict |
 | `429` | tenant or user rate limit |
+| `503` | trusted JWKS, current permission generation, permission snapshot, or authoritative authorization service is temporarily unavailable |
 
-`401` 表示客户端需要重新建立或刷新身份与授权上下文，响应应携带适当的 `WWW-Authenticate`；`403` 只说明当前可信主体没有动作权限；对象不存在、跨租户或超出部门/本人范围统一为 `404`，避免攻击者根据差异枚举资源。`409` 与 `429` 不是权限不足，客户端不应通过重新登录来重试。
+`401` 表示客户端需要重新建立或刷新身份与授权上下文，响应应携带适当的 `WWW-Authenticate`；`403` 只说明当前可信主体没有动作权限；对象不存在、跨租户或超出部门/本人范围统一为 `404`，避免攻击者根据差异枚举资源。`503` 表示服务当前无法取得可信授权答案，而不是客户端身份一定无效，响应可以根据恢复预期携带 `Retry-After`。`409` 与 `429` 也不是权限不足，客户端不应通过重新登录来重试。
 
 下面这些错误在企业权限系统中尤其常见：
 
@@ -1341,12 +1560,18 @@ async def run_agent(
 | Other tenant's resource | `404` | 单条查询同时包含资源 ID 与当前租户 ID |
 | Wrong JWT audience | `401` | 不产生 `Principal`，不调用业务服务 |
 | Stale permission version | `401` and reauthorization | 清除或绕过旧快照，客户端必须重新取得令牌 |
+| Membership leaves and rejoins tenant | old token remains `401` | `(user_id, tenant_id)` generation 单调递增且从不重置 |
+| JWKS or permission-version source unavailable | `503` | 不伪装成无效令牌，可按策略返回 `Retry-After` |
+| Permission snapshot or high-risk authorization unavailable | `503` | 不沿用旧缓存，不执行业务副作用 |
+| Same action granted by SELF and DEPARTMENT roles | OR-composed result | 本人记录与本部门记录取并集，不按等级丢掉任一谓词 |
+| Unknown DataScope in historical dirty row | denied and logged | 跳过未知 grant，不抛出 `KeyError`，也不扩大查询 |
+| Membership or resource department belongs to another tenant | denied | 写入校验与数据库复合外键同时阻止跨租户部门 |
 | Superuser without active tenant | denied | `is_superuser` 不绕过有效 `Membership` |
 | Forged request tenant_id | `422` rejected | `RunAgentRequest(extra="forbid")` 拒绝额外字段，路由和仓储不执行 |
 
 这里的拒绝结果由本文展示的请求模型决定，不存在“忽略或拒绝”两种答案；即使将来接口改为忽略未知字段，任何被接受的请求也只能使用验签后 `Principal.tenant_id` 作为租户权限来源，请求数据永远不能升级为租户授权事实。
 
-还应补充：禁用用户、禁用租户、禁用成员、缺少 `kid`、未知 `kid`、过期令牌、签名被篡改、部门范围但成员无部门、同一成员由多个角色授予同一动作、不同租户存在同名角色、快照接口超时、审计写入失败、列表与导出接口、并发幂等键冲突和租户/用户限流。跨服务 ID 合同还要有一条正向测试，证明 Django 的 UUID `User.id` 与 `Tenant.id` 分别经 `sub` 和 `tenant_id` 签发后能构造 FastAPI `Principal`；再用整数或畸形 ID 做反向测试并断言 `401`。测试数据库中要故意构造一条跨租户脏 `MembershipRole`，证明 `resolve_permissions()` 的双重租户条件仍会拒绝它。
+还应补充：禁用用户、禁用租户、禁用成员、缺少 `kid`、未知 `kid`、过期令牌、签名被篡改、部门范围但成员无部门、同一成员由多个角色授予同一动作、不同租户存在同名角色、审计写入失败、列表与导出接口、并发幂等键冲突和租户/用户限流。跨服务 ID 合同还要有一条正向测试，证明 Django 的 UUID `User.id` 与 `Tenant.id` 分别经 `sub` 和 `tenant_id` 签发后能构造 FastAPI `Principal`；再用整数或畸形 ID 做反向测试并断言 `401`。测试数据库中要故意构造跨租户脏 `MembershipRole`、跨租户部门和未知 `DataScope`，证明 `resolve_permissions()` 与 `tenant_safe_queryset()` 都会失败关闭；权限快照和高风险回查测试还必须断言 Django 接收到原始签名 JWT 或可反查句柄，而不是只接收到重建的 `Principal`。
 
 测试还要验证“没有发生什么”：拒绝路径不应启动模型调用、不应创建异步任务、不应消耗其他租户配额，也不应把目标对象详情写入错误响应或普通日志。对于 `404`，可以断言跨租户和真实不存在返回相同的外部结构，但内部审计保留不同的可信拒绝原因。
 
@@ -1359,7 +1584,7 @@ async def run_agent(
 3. **FastAPI 执行面阶段**：当流式响应、独立扩缩容或 AI 依赖隔离成为真实瓶颈，再引入短期 RS256 JWT、固定 `iss`/`aud`、JWKS、版本化权限快照和租户安全仓储。先迁移低风险、可重试的执行接口，Django 继续拥有租户和授权写模型。
 4. **集中策略阶段**：只有多个服务确实重复复杂 ABAC、策略发布和审计需求时，才评估独立策略服务。迁移期间以影子求值比较新旧答案，差异默认拒绝；策略服务不可用时不能自动放行。
 
-每个阶段都应设置可观测指标：按原因分类的 `401/403/404`、授权快照延迟和失败率、版本失效传播时间、跨租户查询防护测试、审计投递失败率以及令牌签名密钥轮换结果。服务拆分前先压测并记录瓶颈；如果流式执行面故障，控制面仍应能禁用租户、撤销授权和查询审计。
+每个阶段都应设置可观测指标：按原因分类的 `401/403/404/503`、授权快照延迟和失败率、版本失效传播时间、跨租户查询防护测试、审计投递失败率以及令牌签名密钥轮换结果。服务拆分前先压测并记录瓶颈；如果流式执行面故障，控制面仍应能禁用租户、撤销授权和查询审计。
 
 数据库也应按职责逐步收窄：先用独立账号和最小权限，再把 FastAPI 资源迁入执行面自有存储，最后通过 ID 和受认证事件同步必要状态。不要用双写角色表过渡；任何时刻都只能有一个可编辑的权限权威来源。
 
