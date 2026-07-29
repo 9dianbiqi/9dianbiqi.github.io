@@ -10,7 +10,7 @@ tags:
   - RBAC
   - 多租户
   - 企业架构
-readingTime: "约 30 分钟"
+readingTime: "约 35 分钟"
 draft: false
 ---
 
@@ -36,7 +36,7 @@ flowchart TD
 
 因此，本文把一次授权判断写成一个清晰的交集：
 
-```text
+```plaintext
 允许访问 = 可信身份 ∩ 有效租户成员关系 ∩ 动作权限 ∩ 数据范围 ∩ 资源租户归属
 ```
 
@@ -75,7 +75,7 @@ Django 把常见的身份与模型级权限概念做成了一套可迁移、可�
 request.user.has_perm("knowledge.delete_knowledgebase")
 ```
 
-`has_perm()` 会交给配置的认证后端求值，既可以利用用户直接权限，也可以利用组权限。`is_superuser` 表示该用户在默认语义下无需逐项分配便被视为拥有全部权限；它是高风险平台开关，不应被当成租户角色。`is_staff` 主要表示用户是否可以登录 Django Admin，也不等于“某个租户的管理员”。两者都是 `User` 属性，而不是本文的租户授权模型。
+`has_perm()` 会交给配置的认证后端求值，既可以利用用户直接权限，也可以利用组权限。`is_superuser` 表示该用户在默认语义下无需逐项分配便被视为拥有全部权限；它是高风险平台开关，不应被当成租户角色。`is_staff` 只是默认 Django Admin 入口的必要条件，而非充分条件：默认 [`AdminSite.has_permission()`](https://docs.djangoproject.com/en/5.2/ref/contrib/admin/#django.contrib.admin.AdminSite.has_permission) 同时要求 `is_active=True` 和 `is_staff=True`；它也不等于“某个租户的管理员”。两者都是 `User` 属性，而不是本文的租户授权模型。
 
 Django Admin 会使用模型权限控制查看、添加、修改和删除入口，这使权限配置和内部运营界面天然衔接。使用 Django REST Framework 时，还可以继承 [`BasePermission`](https://www.django-rest-framework.org/api-guide/permissions/) 实现：
 
@@ -104,7 +104,7 @@ Django 默认权限擅长回答“这个用户是否拥有某个模型动作”�
 
 所以扩展策略不是废弃 Django 权限，而是分层复用：
 
-```text
+```plaintext
 Django Permission：统一动作目录
 Tenant Role：租户内权限集合与数据范围
 Membership：用户在当前租户中的授权主体
@@ -338,7 +338,7 @@ knowledge_base = queryset.get(id=knowledge_base_id)
 
 这三道门最终形成稳定的请求管道：
 
-```text
+```plaintext
 request
   → authenticated user
   → active Membership in trusted Tenant
@@ -413,7 +413,7 @@ flowchart LR
 }
 ```
 
-各字段承担不同职责：`sub` 是用户标识，`tenant_id` 是本次令牌唯一有效的租户上下文，`roles` 是签发时的角色快照，`permission_version` 用于判断权限是否已经变更，`jti` 用于审计和必要时的单令牌撤销。`iss`、`aud`、`iat` 与 `exp` 则约束令牌由谁签发、给谁使用以及有效时间。
+各字段承担不同职责：`sub` 是用户标识，`tenant_id` 是本次令牌唯一有效的租户上下文，`roles` 是签发时的角色快照，`permission_version` 用于判断权限是否已经变更，`jti` 是用于审计和撤销查询的令牌标识。`jti` 本身不会撤销令牌；单令牌撤销还必须让验证方在每次使用时查询可信的拒绝列表或等效权威状态。`iss`、`aud`、`iat` 与 `exp` 则约束令牌由谁签发、给谁使用以及有效时间。
 
 服务间应采用**非对称签名**：Django 持有签名私钥；FastAPI 只持有验签公钥，或者从受信任地址读取 JWKS。FastAPI 验证时必须同时检查签名、固定的算法允许列表、`iss`、`aud` 和 `exp`，不能根据令牌头里的 `alg` 任意选择算法，也不能只把载荷做 Base64 解码就当成可信身份。密钥轮换时可通过 `kid` 选择 JWKS 中仍在轮换窗口内的公钥，但未知 `kid` 必须拒绝。
 
@@ -503,7 +503,7 @@ async def run_agent(
 
 控制面不需要一开始就拆成十几个 Django app，但权限解析、令牌签发和 API 入口应保持明确边界。一个最小目录可以是：
 
-```text
+```plaintext
 control_plane/
 ├── tenants/
 │   ├── models.py
@@ -869,7 +869,7 @@ def issue_access_token(membership: Membership) -> str:
 
 执行面按身份、验签、依赖、仓储、服务和审计拆开。下面的树列出本节示例直接导入的全部本地模块；框架配置、迁移和测试目录仍可按项目约定扩展：
 
-```text
+```plaintext
 ai_service/
 ├── auth/
 │   ├── principal.py
@@ -1342,7 +1342,9 @@ async def run_agent(
 | Wrong JWT audience | `401` | 不产生 `Principal`，不调用业务服务 |
 | Stale permission version | `401` and reauthorization | 清除或绕过旧快照，客户端必须重新取得令牌 |
 | Superuser without active tenant | denied | `is_superuser` 不绕过有效 `Membership` |
-| Forged request tenant_id | ignored | 查询和审计均使用可信主体的租户，或因额外字段被拒绝 |
+| Forged request tenant_id | `422` rejected | `RunAgentRequest(extra="forbid")` 拒绝额外字段，路由和仓储不执行 |
+
+这里的拒绝结果由本文展示的请求模型决定，不存在“忽略或拒绝”两种答案；即使将来接口改为忽略未知字段，任何被接受的请求也只能使用验签后 `Principal.tenant_id` 作为租户权限来源，请求数据永远不能升级为租户授权事实。
 
 还应补充：禁用用户、禁用租户、禁用成员、缺少 `kid`、未知 `kid`、过期令牌、签名被篡改、部门范围但成员无部门、同一成员由多个角色授予同一动作、不同租户存在同名角色、快照接口超时、审计写入失败、列表与导出接口、并发幂等键冲突和租户/用户限流。跨服务 ID 合同还要有一条正向测试，证明 Django 的 UUID `User.id` 与 `Tenant.id` 分别经 `sub` 和 `tenant_id` 签发后能构造 FastAPI `Principal`；再用整数或畸形 ID 做反向测试并断言 `401`。测试数据库中要故意构造一条跨租户脏 `MembershipRole`，证明 `resolve_permissions()` 的双重租户条件仍会拒绝它。
 
