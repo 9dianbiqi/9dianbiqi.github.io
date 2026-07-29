@@ -12,3 +12,4 @@ playwright-report/
 obsidian/vault/
 obsidian/private/
 .obsidian/
+.worktrees/
